@@ -22,5 +22,6 @@ brew "kayac/tap/ecspresso"
 brew "libyaml"
 brew "gh"
 brew "act"
+brew "ghq"
 
 cask "warp"
