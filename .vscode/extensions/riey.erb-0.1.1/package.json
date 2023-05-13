@@ -1,0 +1,56 @@
+{
+	"name": "erb",
+	"displayName": "Erb",
+	"description": "ERB language support for Visual Studio Code",
+	"version": "0.1.1",
+	"publisher": "Riey",
+	"engines": {
+		"vscode": "^1.5.0"
+	},
+	"categories": [
+		"Languages",
+		"Snippets"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Riey/erb-vscode.git"
+	},
+	"contributes": {
+		"languages": [
+			{
+				"id": "erb",
+				"aliases": [
+					"ERB",
+					"Emuera"
+				],
+				"extensions": [
+					".erb"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"snippets": [
+			{
+				"language": "erb",
+				"path": "./snippets/erb.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "erb",
+				"scopeName": "source.erb",
+				"path": "./syntaxes/erb.tmLanguage.json"
+			}
+		]
+	},
+	"__metadata": {
+		"id": "3e3ca07d-f131-4910-aa8e-4d015e9f9359",
+		"publisherId": "94b1505e-490c-4be8-b4a7-43503ea05e05",
+		"publisherDisplayName": "Riey",
+		"targetPlatform": "undefined",
+		"updated": false,
+		"isPreReleaseVersion": false,
+		"preRelease": false,
+		"installedTimestamp": 1649225999613
+	}
+}
