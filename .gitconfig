@@ -3,3 +3,19 @@
 	email = kkabosu386@gmail.com
 [ghq]
 	root = ~/work
+[core]
+	quotepath = false
+[push]
+	default = simple
+[diff]
+	compactionHeuristic = true
+	tool = vimdiff
+[difftool]
+	prompt = false
+[merge]
+	tool = vimdiff
+[mergetool]
+	prompt = false
+	keepBackup = false
+[fetch]
+	prune = true
