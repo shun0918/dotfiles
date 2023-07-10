@@ -31,16 +31,8 @@ alias dceb='docker-compose exec backend bash'
 
 export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"
 
-
-# ctrl-]でリポジトリを切り替えられるようにする
-# 2023/5/14時点ではbindkeyにwarpが対応していないので注意が必要
-function peco-src () {
-  local selected_dir=$(ghq list -p | peco --query "$LBUFFER")
-  if [ -n "$selected_dir" ]; then
-    BUFFER="cd ${selected_dir}"
-    zle accept-line
-  fi
-  zle clear-screen
+function repo () {
+  local dir
+  dir=$(ghq list -p | peco)
+  cd $dir
 }
-zle -N peco-src
-bindkey '^]' peco-src
