@@ -1,0 +1,37 @@
+# Brewfile.local - Machine-specific Homebrew packages
+#
+# This file is for packages that are specific to this machine.
+# Copy this template to Brewfile.local and customize as needed:
+#   cp Brewfile.local.template Brewfile.local
+#
+# Then install with: brew bundle --file=Brewfile.local
+
+# ===== Custom taps =====
+# tap "hashicorp/tap"
+
+# ===== Programming languages & runtimes =====
+# brew "go"
+# brew "node"
+# brew "python@3.12"
+# brew "rbenv"
+# brew "ruby-build"
+
+# ===== Databases =====
+# brew "mysql"
+# brew "postgresql"
+# brew "redis"
+
+# ===== Development tools =====
+# brew "act"                    # Run GitHub Actions locally
+# brew "mkcert"                 # Local HTTPS certificates
+# brew "nss"                    # Network Security Services
+
+# ===== Infrastructure & Cloud =====
+# brew "hashicorp/tap/terraform"
+# brew "saml2aws"
+# brew "awscli"
+
+# ===== GUI applications =====
+# cask "docker"
+# cask "postman"
+# cask "visual-studio-code"

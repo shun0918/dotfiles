@@ -1,0 +1,26 @@
+# .zshrc_local - Machine-specific zsh configuration
+#
+# This file is for settings that are specific to this machine.
+# Copy this template to .zshrc_local and customize as needed:
+#   cp .zshrc_local.template .zshrc_local
+
+# ===== Project-specific aliases =====
+# Example:
+# alias dc='docker compose'
+# alias lint='yarn lint --fix && yarn tsc --noEmit'
+
+# ===== Custom PATH additions =====
+# Example:
+# export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"
+
+# ===== Cloud SDK configuration =====
+# Google Cloud SDK
+# if [ -f "$HOME/google-cloud-sdk/path.zsh.inc" ]; then . "$HOME/google-cloud-sdk/path.zsh.inc"; fi
+# if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
+
+# AWS configuration
+# export AWS_PROFILE=your-profile
+# export AWS_REGION=ap-northeast-1
+
+# ===== Work-specific settings =====
+# Add your work-specific configurations here
