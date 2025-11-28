@@ -1,5 +1,3 @@
-tap "homebrew/bundle"
-
 brew "actionlint"
 brew "bat"
 brew "cloc"
