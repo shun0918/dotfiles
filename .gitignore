@@ -1,2 +1,4 @@
 .zshrc_local
 .netrwhist
+Brewfile.local
+Brewfile.local.lock.json
