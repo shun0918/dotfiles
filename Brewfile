@@ -16,6 +16,7 @@ brew "sops"
 brew "tmux"
 brew "tree"
 
+cask "brave-browser"
 cask "claude-code"
 cask "codex"
 cask "docker-desktop"
