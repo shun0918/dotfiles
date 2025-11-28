@@ -1,5 +1,4 @@
 export PATH="$HOME/.rbenv/bin:$PATH"
-eval "$(rbenv init -)"
 
 export PATH="/opt/homebrew/opt/openssl@1.1/bin:$PATH"
 # export AWS_REGION=us-west-2
@@ -53,8 +52,6 @@ awsso() {
   aws sso login
   aws sts get-caller-identity
 }
-
-export PATH="$PATH:$(go env GOPATH)/bin"
 
 # pnpm
 export PNPM_HOME="$HOME/Library/pnpm"
