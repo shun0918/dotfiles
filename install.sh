@@ -36,6 +36,7 @@ link .direnvrc
 link .gitconfig
 link .gitignore_global
 link .tmux.conf
+link .vimrc
 link .vim
 link .zshenv
 link .zshrc
