@@ -15,4 +15,6 @@ brew "sops"
 brew "tmux"
 brew "tree"
 
+cask "karabiner-elements"
+cask "raycast"
 cask "warp"

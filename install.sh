@@ -41,6 +41,10 @@ link .zshenv
 link .zshrc
 link Brewfile
 
+# Link karabiner config
+mkdir -p "$HOME/.config"
+link .config/karabiner
+
 # Create .zshrc_local from template if not exists
 [ ! -f "$HOME/.zshrc_local" ] && cp "$DOTFILES_DIR/.zshrc_local.template" "$HOME/.zshrc_local"
 
