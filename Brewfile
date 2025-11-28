@@ -17,4 +17,5 @@ brew "tree"
 
 cask "karabiner-elements"
 cask "raycast"
+cask "thebrowsercompany-dia"
 cask "warp"
