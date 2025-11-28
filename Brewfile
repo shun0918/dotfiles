@@ -16,6 +16,7 @@ brew "tmux"
 brew "tree"
 
 cask "karabiner-elements"
+cask "logi-options+"
 cask "raycast"
 cask "thebrowsercompany-dia"
 cask "warp"
