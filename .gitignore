@@ -4,3 +4,6 @@
 Brewfile.local
 Brewfile.local.lock.json
 .config/karabiner/automatic_backups
+
+# Vim plugin directory
+.vim/plugged/
