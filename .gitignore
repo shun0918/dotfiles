@@ -1,4 +1,5 @@
 .zshrc_local
+.gitconfig.local
 .netrwhist
 Brewfile.local
 Brewfile.local.lock.json

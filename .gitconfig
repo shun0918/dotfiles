@@ -1,6 +1,5 @@
-[user]
-	name = shun0918
-	email = kkabosu386@gmail.com
+[include]
+	path = ~/.gitconfig.local
 [ghq]
 	root = ~/work
 [core]

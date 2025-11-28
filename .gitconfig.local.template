@@ -1,0 +1,9 @@
+# .gitconfig.local - Machine-specific git configuration
+#
+# This file is for settings that are specific to this machine.
+# Copy this template to .gitconfig.local and customize as needed:
+#   cp .gitconfig.local.template .gitconfig.local
+
+[user]
+	name = YOUR_NAME
+	email = YOUR_EMAIL

@@ -48,6 +48,9 @@ link .config/karabiner
 # Create .zshrc_local from template if not exists
 [ ! -f "$HOME/.zshrc_local" ] && cp "$DOTFILES_DIR/.zshrc_local.template" "$HOME/.zshrc_local"
 
+# Create .gitconfig.local from template if not exists
+[ ! -f "$HOME/.gitconfig.local" ] && cp "$DOTFILES_DIR/.gitconfig.local.template" "$HOME/.gitconfig.local"
+
 # Create Brewfile.local from template if not exists
 [ ! -f "$HOME/Brewfile.local" ] && [ -f "$DOTFILES_DIR/Brewfile.local.template" ] && \
     cp "$DOTFILES_DIR/Brewfile.local.template" "$HOME/Brewfile.local"
