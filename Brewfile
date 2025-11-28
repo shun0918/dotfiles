@@ -15,6 +15,7 @@ brew "sops"
 brew "tmux"
 brew "tree"
 
+cask "docker-desktop"
 cask "karabiner-elements"
 cask "logi-options+"
 cask "raycast"
