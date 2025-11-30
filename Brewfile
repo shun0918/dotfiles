@@ -11,6 +11,7 @@ brew "openssl@3", link: true
 brew "peco"
 brew "ripgrep"
 brew "sops"
+brew "tailscale"
 brew "tmux"
 brew "tree"
 
