@@ -33,6 +33,10 @@ alias gch='git branch | grep -v "\*" | peco | xargs git checkout'
 alias ll='ls -l'
 alias dce='docker compose exec'
 
+mkcd () {
+  mkdir "$1" && cd "$1"
+}
+
 function repo () {
   local dir
   dir=$(ghq list -p | peco)
