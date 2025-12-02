@@ -23,10 +23,17 @@ link() {
     local dest="$HOME/$1"
 
     if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
+        echo "Already linked: $1"
         return 0
     fi
 
-    [ -e "$dest" ] && mv "$dest" "$dest.backup"
+    # Backup existing file/directory/symlink (including broken symlinks)
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        rm -rf "$dest.backup"
+        mv "$dest" "$dest.backup"
+        echo "Backed up: $1 -> $1.backup"
+    fi
+
     ln -s "$src" "$dest"
     echo "Linked: $1"
 }
