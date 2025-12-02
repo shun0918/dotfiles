@@ -47,13 +47,26 @@ mkdir -p "$HOME/.config"
 link .config/karabiner
 link .config/nvim
 
-# Create .zshrc_local from template if not exists
+# Function to create .gitconfig.local interactively
+create_gitconfig_local() {
+    if [ -f "$HOME/.gitconfig.local" ]; then
+        echo "~/.gitconfig.local already exists, skipping."
+        return
+    fi
+
+    echo "Setup gitconfig..."
+    read -p "Enter your git user.name: " git_name
+    read -p "Enter your git user.email: " git_email
+
+    sed -e "s/YOUR_NAME/$git_name/" -e "s/YOUR_EMAIL/$git_email/" \
+        "$DOTFILES_DIR/.gitconfig.local.template" > "$HOME/.gitconfig.local"
+
+    echo "~/.gitconfig.local created."
+}
+
+# Create local config files from templates if they don't exist
 [ ! -f "$HOME/.zshrc_local" ] && cp "$DOTFILES_DIR/.zshrc_local.template" "$HOME/.zshrc_local"
-
-# Create .gitconfig.local from template if not exists
-[ ! -f "$HOME/.gitconfig.local" ] && cp "$DOTFILES_DIR/.gitconfig.local.template" "$HOME/.gitconfig.local"
-
-# Create Brewfile.local from template if not exists
+create_gitconfig_local
 [ ! -f "$HOME/Brewfile.local" ] && [ -f "$DOTFILES_DIR/Brewfile.local.template" ] && \
     cp "$DOTFILES_DIR/Brewfile.local.template" "$HOME/Brewfile.local"
 
