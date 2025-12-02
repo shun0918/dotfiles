@@ -43,12 +43,14 @@ Plug 'projekt0n/github-nvim-theme'
 
 " Add your plugins here:
 " Example plugins (uncomment to use):
-" Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
-" Plug 'junegunn/fzf.vim'
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+Plug 'junegunn/fzf.vim'
 " Plug 'dracula/vim', { 'as': 'dracula' }
 " Plug 'vim-airline/vim-airline'
 " Plug 'preservim/nerdtree' " File system explorer
-" Plug 'neoclide/coc.nvim', {'branch': 'release'} " Intellisense engine for Vim8 & Neovim
+Plug 'neoclide/coc.nvim', {'branch': 'release'} " Intellisense engine for Vim8 & Neovim
+Plug 'tpope/vim-surround'
+Plug 'windwp/nvim-autopairs'
 
 call plug#end()
 
@@ -58,3 +60,41 @@ try
 catch /^Vim\%((\a\+)\)\=:E185/
   " Colorscheme not found.
 endtry
+
+" fzf.vim のショートカット
+nnoremap <leader>f :Files<CR>
+nnoremap <leader>g :Rg<CR>
+
+" coc.nvim のキーマッピング
+" <tab> で補完候補を移動 (もし補完がない場合は次の文字を挿入)
+inoremap <silent><expr> <TAB>
+      \ pumvisible() ? "\<C-n>" :
+      \ CheckBackspace() ? "\<TAB>" :
+      \ coc#refresh()
+inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+
+function! CheckBackspace() abort
+  let col = col('.') - 1
+  return !col || getline('.')[col - 1] =~ '\s'
+endfunction
+
+" <CR> (Enter) で補完候補を確定
+inoremap <silent><expr> <CR> pumvisible() ? coc#_select_confirm() : "\<C-g>u\<CR>"
+
+" カーソル下の単語のドキュメントを表示 (ノーマルモードでK)
+nnoremap <silent> K :call <SNR>coc#util#cursor_word_command('references')<CR>
+
+" 定義へジャンプ (gd)
+nnoremap <silent> gd <Plug>(coc-definition)
+" 型定義へジャンプ (gt)
+nnoremap <silent> gt <Plug>(coc-type-definition)
+" 実装へジャンプ (gi)
+nnoremap <silent> gi <Plug>(coc-implementation)
+" 参照箇所へジャンプ (gr)
+nnoremap <silent> gr <Plug>(coc-references)
+
+" nvim-autopairs の設定
+lua << EOF
+require('nvim-autopairs').setup{}
+EOF
+
