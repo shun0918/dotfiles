@@ -51,6 +51,7 @@ Plug 'junegunn/fzf.vim'
 Plug 'neoclide/coc.nvim', {'branch': 'release'} " Intellisense engine for Vim8 & Neovim
 Plug 'tpope/vim-surround'
 Plug 'windwp/nvim-autopairs'
+Plug 'kdheepak/lazygit.nvim' " Lazygit integration
 
 call plug#end()
 
@@ -64,6 +65,9 @@ endtry
 " fzf.vim のショートカット
 nnoremap <leader>f :Files<CR>
 nnoremap <leader>g :Rg<CR>
+
+" lazygit のショートカット
+nnoremap <leader>lg :LazyGit<CR>
 
 " coc.nvim のキーマッピング
 " <tab> で補完候補を移動 (もし補完がない場合は次の文字を挿入)
