@@ -2,10 +2,7 @@ export PATH="$HOME/.rbenv/bin:$PATH"
 
 export PATH="/opt/homebrew/opt/openssl@1.1/bin:$PATH"
 # export AWS_REGION=us-west-2
-export AWS_REGION=ap-northeast-1
 # export ANTHROPIC_MODEL='us.anthropic.claude-opus-4-1-20250805-v1:0'
-export ANTHROPIC_MODEL='jp.anthropic.claude-sonnet-4-5-20250929-v1:0'
-export CLAUDE_CODE_USE_BEDROCK=1
 # export CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192
 
 # Linux command START
@@ -70,3 +67,10 @@ if [ -f "$HOME/.zshrc_local" ]; then
 fi
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# bun completions
+[ -s "/Users/shun/.bun/_bun" ] && source "/Users/shun/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
