@@ -53,6 +53,10 @@ Plug 'tpope/vim-surround'
 Plug 'windwp/nvim-autopairs'
 Plug 'kdheepak/lazygit.nvim' " Lazygit integration
 
+" Svelte support
+Plug 'leafOfTree/vim-svelte-plugin'
+Plug 'leafgarland/typescript-vim'  " TypeScript syntax support for Svelte
+
 call plug#end()
 
 " --- カラースキームを設定 ---
@@ -101,4 +105,16 @@ nnoremap <silent> gr <Plug>(coc-references)
 lua << EOF
 require('nvim-autopairs').setup{}
 EOF
+
+" vim-svelte-plugin の設定
+let g:vim_svelte_plugin_load_full_syntax = 1
+let g:vim_svelte_plugin_use_typescript = 1
+
+" Svelte ファイルタイプの設定
+augroup svelte_ft
+  autocmd!
+  autocmd BufNewFile,BufRead *.svelte set filetype=svelte
+  " TypeScript を使用する場合の設定
+  autocmd FileType svelte setlocal commentstring=<!--\ %s\ -->
+augroup END
 

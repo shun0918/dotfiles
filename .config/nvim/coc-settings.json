@@ -1,0 +1,8 @@
+{
+  "svelte.enable-ts-plugin": true,
+  "svelte.plugin.typescript.enable": true,
+  "svelte.plugin.typescript.diagnostics.enable": true,
+  "svelte.plugin.typescript.semanticTokens.enable": true,
+  "svelte.plugin.svelte.diagnostics.enable": true,
+  "svelte.plugin.svelte.format.enable": true
+}
