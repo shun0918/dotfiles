@@ -2,20 +2,34 @@
   "svelte.enable-ts-plugin": true,
   "svelte.plugin.typescript.enable": true,
   "svelte.plugin.typescript.diagnostics.enable": true,
-  "svelte.plugin.typescript.semanticTokens.enable": true,
   "svelte.plugin.svelte.diagnostics.enable": true,
-  "svelte.plugin.svelte.format.enable": true
-}
-  "coc.preferences.formatOnSaveFiletypes": [
-    "javascript",
-    "typescript",
-    "typescriptreact",
-    "javascriptreact",
-    "json",
-    "css",
-    "scss",
-    "html",
-    "markdown"
-  ],
+  "svelte.plugin.svelte.format.enable": true,
+  "[javascript]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[typescript]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[javascriptreact]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[json]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[css]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[scss]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[html]": {
+    "coc.preferences.formatOnSave": true
+  },
+  "[markdown]": {
+    "coc.preferences.formatOnSave": true
+  },
   "prettier.requireConfig": false
 }
