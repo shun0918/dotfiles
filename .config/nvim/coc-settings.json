@@ -6,3 +6,16 @@
   "svelte.plugin.svelte.diagnostics.enable": true,
   "svelte.plugin.svelte.format.enable": true
 }
+  "coc.preferences.formatOnSaveFiletypes": [
+    "javascript",
+    "typescript",
+    "typescriptreact",
+    "javascriptreact",
+    "json",
+    "css",
+    "scss",
+    "html",
+    "markdown"
+  ],
+  "prettier.requireConfig": false
+}
