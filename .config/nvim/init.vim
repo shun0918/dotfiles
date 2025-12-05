@@ -20,6 +20,10 @@ set expandtab " タブをスペースに変換
 set ignorecase " 検索時に大文字小文字を区別しない
 set smartcase " 検索文字列に大文字が含まれている場合は区別する
 
+" スクロール設定
+set scrolloff=8 " カーソルの上下に最低8行の余白を保つ
+set sidescrolloff=8 " カーソルの左右に最低8列の余白を保つ
+
 " 外観
 set t_Co=256 " 256色表示を有効化
 
