@@ -27,6 +27,13 @@ set sidescrolloff=8 " カーソルの左右に最低8列の余白を保つ
 " 外観
 set t_Co=256 " 256色表示を有効化
 
+" マウスとクリップボード設定
+set mouse=a " マウス操作を有効化
+set clipboard=unnamed " ヤンクでシステムクリップボードにコピー
+if has('mac')
+  set clipboard+=unnamedplus " macOSでシステムクリップボードを使用
+endif
+
 
 " --- Plugin Management ---
 " Note: Neovim uses ~/.local/share/nvim/plugged instead of ~/.vim/plugged by default
