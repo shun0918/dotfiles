@@ -63,6 +63,7 @@ Plug 'neoclide/coc.nvim', {'branch': 'release'} " Intellisense engine for Vim8 &
 Plug 'tpope/vim-surround'
 Plug 'windwp/nvim-autopairs'
 Plug 'kdheepak/lazygit.nvim' " Lazygit integration
+Plug 'stevearc/oil.nvim' " File explorer (lightweight)
 
 " Svelte support
 Plug 'leafOfTree/vim-svelte-plugin'
@@ -83,6 +84,9 @@ nnoremap <leader>g :Rg<CR>
 
 " lazygit のショートカット
 nnoremap <leader>lg :LazyGit<CR>
+
+" oil.nvim のショートカット
+nnoremap <leader>e :Oil<CR>
 
 " coc.nvim のキーマッピング
 " <tab> で補完候補を移動 (もし補完がない場合は次の文字を挿入)
@@ -128,4 +132,69 @@ augroup svelte_ft
   " TypeScript を使用する場合の設定
   autocmd FileType svelte setlocal commentstring=<!--\ %s\ -->
 augroup END
+" oil.nvim の設定
+lua << EOF
+require('oil').setup({
+  -- デフォルトのファイルエクスプローラーとして使う
+  default_file_explorer = true,
+  -- カラム設定（アイコン、パーミッションなど）
+  columns = {
+    "icon",
+  },
+  -- キーマップ
+  keymaps = {
+    ["g?"] = "actions.show_help",
+    ["<CR>"] = "actions.select",
+    ["<C-v>"] = "actions.select_vsplit",
+    ["<C-x>"] = "actions.select_split",
+    ["<C-t>"] = "actions.select_tab",
+    ["<C-p>"] = "actions.preview",
+    ["<C-c>"] = "actions.close",
+    ["<C-r>"] = "actions.refresh",
+    ["-"] = "actions.parent",
+    ["_"] = "actions.open_cwd",
+    ["`"] = "actions.cd",
+    ["~"] = "actions.tcd",
+    ["gs"] = "actions.change_sort",
+    ["gx"] = "actions.open_external",
+    ["g."] = "actions.toggle_hidden",
+  },
+  -- 浮動ウィンドウではなく通常のウィンドウで開く
+  view_options = {
+    show_hidden = false,
+  },
+})
+EOF
+
+" copilot.lua の設定
+lua << EOF
+require('copilot').setup({
+  suggestion = {
+    enabled = true,
+    auto_trigger = true,
+    keymap = {
+      accept = "<C-y>",      -- Ctrl+y で補完を受け入れ
+      next = "<M-]>",        -- 次の候補
+      prev = "<M-[>",        -- 前の候補
+      dismiss = "<C-]>",     -- 補完を閉じる
+    },
+  },
+  panel = {
+    enabled = true,
+    auto_refresh = false,
+  },
+})
+EOF
+
+" CopilotChat の設定
+lua << EOF
+require('CopilotChat').setup({
+  debug = false,
+  -- ウィンドウの設定
+  window = {
+    layout = 'vertical',  -- vertical, horizontal, float
+    width = 0.4,          -- ウィンドウ幅（0-1の範囲）
+  },
+})
+EOF
 
