@@ -121,8 +121,16 @@ endfunction
 " <CR> (Enter) で補完候補を確定
 inoremap <silent><expr> <CR> pumvisible() ? coc#_select_confirm() : "\<C-g>u\<CR>"
 
-" カーソル下の単語のドキュメントを表示 (ノーマルモードでK)
-nnoremap <silent> K :call <SNR>coc#util#cursor_word_command('references')<CR>
+" カーソル下の単語のドキュメント・型情報を表示 (ノーマルモードでK)
+nnoremap <silent> K :call ShowDocumentation()<CR>
+
+function! ShowDocumentation()
+  if CocAction('hasProvider', 'hover')
+    call CocActionAsync('doHover')
+  else
+    call feedkeys('K', 'in')
+  endif
+endfunction
 
 " 定義へジャンプ (gd)
 nnoremap <silent> gd <Plug>(coc-definition)
