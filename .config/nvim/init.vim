@@ -140,6 +140,19 @@ nnoremap <silent> gt <Plug>(coc-type-definition)
 nnoremap <silent> gi <Plug>(coc-implementation)
 " 参照箇所へジャンプ (gr)
 nnoremap <silent> gr <Plug>(coc-references)
+" 変数をリネーム (<leader>rn)
+nnoremap <silent> <leader>rn <Plug>(coc-rename)
+
+" Code Action / QuickFix (<leader>ac)
+nmap <leader>ac <Plug>(coc-codeaction-cursor)
+nmap <leader>as <Plug>(coc-codeaction-source)
+
+" 自動修正 (<leader>qf)
+nmap <leader>qf <Plug>(coc-fix-current)
+
+" エラー間の移動 ([g, ]g)
+nmap <silent> [g <Plug>(coc-diagnostic-prev)
+nmap <silent> ]g <Plug>(coc-diagnostic-next)
 
 " nvim-autopairs の設定
 lua << EOF
