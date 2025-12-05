@@ -1,5 +1,3 @@
-[include]
-	path = ~/.gitconfig.local
 [ghq]
 	root = ~/Code
 [core]
@@ -18,3 +16,5 @@
 	keepBackup = false
 [fetch]
 	prune = true
+[include]
+	path = ~/.gitconfig.local
