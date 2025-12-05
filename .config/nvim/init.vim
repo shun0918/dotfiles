@@ -68,6 +68,10 @@ Plug 'stevearc/oil.nvim' " File explorer (lightweight)
 " Svelte support
 Plug 'leafOfTree/vim-svelte-plugin'
 Plug 'leafgarland/typescript-vim'  " TypeScript syntax support for Svelte
+" GitHub Copilot
+Plug 'zbirenbaum/copilot.lua' " Copilot補完
+Plug 'nvim-lua/plenary.nvim' " 依存ライブラリ
+Plug 'CopilotC-Nvim/CopilotChat.nvim' " Copilot対話
 
 call plug#end()
 
@@ -87,6 +91,14 @@ nnoremap <leader>lg :LazyGit<CR>
 
 " oil.nvim のショートカット
 nnoremap <leader>e :Oil<CR>
+
+" CopilotChat のショートカット
+nnoremap <leader>cc :CopilotChatToggle<CR>
+vnoremap <leader>ce :CopilotChatExplain<CR>
+vnoremap <leader>cr :CopilotChatReview<CR>
+vnoremap <leader>cf :CopilotChatFix<CR>
+vnoremap <leader>co :CopilotChatOptimize<CR>
+nnoremap <leader>cq :CopilotChatReset<CR>
 
 " coc.nvim のキーマッピング
 " <tab> で補完候補を移動 (もし補完がない場合は次の文字を挿入)
