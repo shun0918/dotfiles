@@ -1,6 +1,10 @@
 export PATH="$HOME/.rbenv/bin:$PATH"
 
 export PATH="/opt/homebrew/opt/openssl@1.1/bin:$PATH"
+
+# Editor
+export EDITOR=nvim
+export VISUAL=nvim
 # export AWS_REGION=us-west-2
 # export ANTHROPIC_MODEL='us.anthropic.claude-opus-4-1-20250805-v1:0'
 # export CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192
