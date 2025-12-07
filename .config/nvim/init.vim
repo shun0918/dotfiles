@@ -211,7 +211,7 @@ require('copilot').setup({
     enabled = true,
     auto_trigger = true,
     keymap = {
-      accept = "<C-y>",      -- Ctrl+y で補完を受け入れ
+      accept = "<C-g>",     -- Ctrl+g で補完を受け入れ
       next = "<M-]>",        -- 次の候補
       prev = "<M-[>",        -- 前の候補
       dismiss = "<C-]>",     -- 補完を閉じる
