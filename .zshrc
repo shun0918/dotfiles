@@ -33,6 +33,7 @@ alias gempty='git commit --allow-empty -m'
 alias gpub='git push -u origin $(git rev-parse --abbrev-ref @) | grep -v "master"'
 alias gbdeldiff='git branch --merged | egrep -v '\*' | xargs git branch -d'
 alias gch='git branch | grep -v "\*" | peco | xargs git checkout'
+alias lg='lazygit'
 # Git END
 
 alias ll='ls -l'
