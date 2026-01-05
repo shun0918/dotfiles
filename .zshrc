@@ -2,6 +2,10 @@ export PATH="$HOME/.rbenv/bin:$PATH"
 
 export PATH="/opt/homebrew/opt/openssl@1.1/bin:$PATH"
 
+# LANG
+export LANG=ja_JP.UTF-8
+export LC_ALL=ja_JP.UTF-8
+
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
