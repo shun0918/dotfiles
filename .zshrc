@@ -15,6 +15,7 @@ export VISUAL=nvim
 
 # Linux command START
 alias dc='docker compose'
+alias oxker='oxker --host unix://$HOME/.docker/run/docker.sock'
 # Linux command END
 
 # Git START
@@ -28,6 +29,8 @@ alias gpull='git pull'
 alias gc-='git checkout -'
 alias glo='git log --oneline'
 alias gc='git checkout'
+alias gs='git switch'
+alias gst="git status"
 alias gemptym='git commit --allow-empty -m "空コミット"'
 alias gempty='git commit --allow-empty -m'
 alias gpub='git push -u origin $(git rev-parse --abbrev-ref @) | grep -v "master"'
@@ -83,3 +86,9 @@ fi
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/shun/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/shun/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/shun/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/shun/google-cloud-sdk/completion.zsh.inc'; fi
