@@ -92,10 +92,10 @@ nnoremap <leader>lg :LazyGit<CR>
 " oil.nvim のショートカット
 nnoremap <leader>e :Oil<CR>
 
-" ファイルパスをコピー
-nnoremap <leader>fp :let @+ = expand('%:p')<CR>:echo 'Copied: ' . expand('%:p')<CR>
-nnoremap <leader>fr :let @+ = expand('%')<CR>:echo 'Copied: ' . expand('%')<CR>
-nnoremap <leader>fn :let @+ = expand('%:t')<CR>:echo 'Copied: ' . expand('%:t')<CR>
+" ファイルパスをコピー (yank)
+nnoremap <leader>yp :let @+ = expand('%:p')<CR>:echo 'Copied: ' . expand('%:p')<CR>
+nnoremap <leader>yr :let @+ = expand('%')<CR>:echo 'Copied: ' . expand('%')<CR>
+nnoremap <leader>yn :let @+ = expand('%:t')<CR>:echo 'Copied: ' . expand('%:t')<CR>
 
 " CopilotChat のショートカット
 nnoremap <leader>cc :CopilotChatToggle<CR>
