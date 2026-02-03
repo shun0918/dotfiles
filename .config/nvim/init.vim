@@ -239,8 +239,11 @@ EOF
 
 " gitsigns.nvim の設定
 lua << EOF
-require('gitsigns').setup({
-  current_line_blame = true, -- 行ごとに誰が書いたか表示
-})
+local ok, gitsigns = pcall(require, 'gitsigns')
+if ok then
+  gitsigns.setup({
+    current_line_blame = true, -- 行ごとに誰が書いたか表示
+  })
+end
 EOF
 
