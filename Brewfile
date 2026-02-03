@@ -1,4 +1,5 @@
 brew "actionlint"
+brew "awscli"
 brew "bat"
 brew "cloc"
 brew "fzf"
@@ -14,6 +15,7 @@ brew "peco"
 brew "ripgrep"
 brew "sops"
 brew "tailscale"
+brew "hashicorp/tap/terraform"
 brew "tmux"
 brew "tree"
 
