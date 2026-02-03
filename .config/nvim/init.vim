@@ -64,6 +64,7 @@ Plug 'tpope/vim-surround'
 Plug 'windwp/nvim-autopairs'
 Plug 'kdheepak/lazygit.nvim' " Lazygit integration
 Plug 'stevearc/oil.nvim' " File explorer (lightweight)
+Plug 'lewis6991/gitsigns.nvim' " Git diff signs in sign column
 
 " Svelte support
 Plug 'leafOfTree/vim-svelte-plugin'
@@ -233,6 +234,13 @@ require('CopilotChat').setup({
     layout = 'vertical',  -- vertical, horizontal, float
     width = 0.4,          -- ウィンドウ幅（0-1の範囲）
   },
+})
+EOF
+
+" gitsigns.nvim の設定
+lua << EOF
+require('gitsigns').setup({
+  current_line_blame = true, -- 行ごとに誰が書いたか表示
 })
 EOF
 
