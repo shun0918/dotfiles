@@ -8,3 +8,4 @@ Brewfile.local.lock.json
 # Vim plugin directory
 .vim/plugged/
 .vim/autoload/
+.DS_Store
