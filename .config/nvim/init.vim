@@ -65,6 +65,7 @@ Plug 'windwp/nvim-autopairs'
 Plug 'kdheepak/lazygit.nvim' " Lazygit integration
 Plug 'stevearc/oil.nvim' " File explorer (lightweight)
 Plug 'lewis6991/gitsigns.nvim' " Git diff signs in sign column
+Plug 'linrongbin16/gitlinker.nvim' " Open GitHub web page for current file
 
 " Svelte support
 Plug 'leafOfTree/vim-svelte-plugin'
@@ -245,5 +246,12 @@ if ok then
     current_line_blame = true, -- 行ごとに誰が書いたか表示
   })
 end
+EOF
+
+" gitlinker.nvim の設定
+lua << EOF
+require('gitlinker').setup({
+  message = true, -- コピー時にメッセージを表示
+})
 EOF
 
