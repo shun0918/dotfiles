@@ -1,4 +1,13 @@
 {
+  "languageserver": {
+    "terraform": {
+      "command": "terraform-ls",
+      "args": ["serve"],
+      "filetypes": ["terraform", "tf"],
+      "initializationOptions": {},
+      "settings": {}
+    }
+  },
   "svelte.enable-ts-plugin": true,
   "svelte.plugin.typescript.enable": true,
   "svelte.plugin.typescript.diagnostics.enable": true,

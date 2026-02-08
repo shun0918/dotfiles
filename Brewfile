@@ -16,6 +16,7 @@ brew "ripgrep"
 brew "sops"
 brew "tailscale"
 brew "hashicorp/tap/terraform"
+brew "hashicorp/tap/terraform-ls"
 brew "tmux"
 brew "tree"
 
