@@ -66,6 +66,7 @@ Plug 'kdheepak/lazygit.nvim' " Lazygit integration
 Plug 'stevearc/oil.nvim' " File explorer (lightweight)
 Plug 'lewis6991/gitsigns.nvim' " Git diff signs in sign column
 Plug 'linrongbin16/gitlinker.nvim' " Open GitHub web page for current file
+Plug 'sindrets/diffview.nvim' " Git diff and file history viewer
 
 " Svelte support
 Plug 'leafOfTree/vim-svelte-plugin'
@@ -254,4 +255,11 @@ require('gitlinker').setup({
   message = true, -- コピー時にメッセージを表示
 })
 EOF
+
+" diffview.nvim の設定とキーマッピング
+nnoremap <leader>dv :DiffviewOpen<CR>
+nnoremap <leader>dc :DiffviewClose<CR>
+nnoremap <leader>dh :DiffviewFileHistory<CR>
+vnoremap <leader>dh :DiffviewFileHistory<CR>
+nnoremap <leader>df :DiffviewFileHistory %<CR>
 
