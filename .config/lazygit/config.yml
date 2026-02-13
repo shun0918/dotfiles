@@ -1,0 +1,8 @@
+gui:
+  theme:
+    # 選択されたラインの色（ハンク選択時）- 薄い黄色背景で赤/緑が読みやすい
+    selectedLineBgColor:
+      - "#3a3a2a"
+    # 選択されたラインの範囲の色
+    selectedRangeBgColor:
+      - "#3a3a2a"

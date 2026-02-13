@@ -49,10 +49,11 @@ link .zshenv
 link .zshrc
 link Brewfile
 
-# Link karabiner config
+# Link .config files
 mkdir -p "$HOME/.config"
 link .config/karabiner
 link .config/nvim
+link .config/lazygit
 
 # Function to create .gitconfig.local interactively
 create_gitconfig_local() {
