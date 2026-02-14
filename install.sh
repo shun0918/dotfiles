@@ -18,9 +18,12 @@ if ! command -v brew &> /dev/null; then
 fi
 
 # Create symlink with backup if needed
+# Usage: link <src> [dest]
+#   src:  path relative to $DOTFILES_DIR
+#   dest: path relative to $HOME (defaults to src)
 link() {
     local src="$DOTFILES_DIR/$1"
-    local dest="$HOME/$1"
+    local dest="$HOME/${2:-$1}"
 
     if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
         echo "Already linked: $1"
@@ -54,6 +57,12 @@ mkdir -p "$HOME/.config"
 link .config/karabiner
 link .config/nvim
 link .config/lazygit
+
+# Link claude config
+mkdir -p "$HOME/.claude"
+link .config/claude/CLAUDE.md .claude/CLAUDE.md
+link .config/claude/settings.json .claude/settings.json
+link .config/claude/skills .claude/skills
 
 # Function to create .gitconfig.local interactively
 create_gitconfig_local() {
