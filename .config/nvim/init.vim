@@ -4,7 +4,6 @@ set termguicolors " True Color を有効化
 set number " 行番号を表示
 set relativenumber " 相対行番号を表示
 set cursorline " カーソル行をハイライト
-set cursorcolumn " カーソル列をハイライト
 set hlsearch " 検索結果をハイライト
 set wildmenu " コマンドの補完メニューを有効化
 set showcmd " 入力中のコマンドを表示
