@@ -41,6 +41,7 @@ alias lg='lazygit'
 
 alias ll='ls -l'
 alias dce='docker compose exec'
+alias today='date "+%Y-%m-%d"'
 
 mkcd () {
   mkdir "$1" && cd "$1"
