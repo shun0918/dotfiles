@@ -49,15 +49,25 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 
 **GitHub Copilot PR レビューの有効化確認**
 
-`PR_NUMBER` が取得できた場合:
+`PR_NUMBER` が取得できた場合のみ確認を行う。
+
+まず `gh` のバージョンを確認する（`@copilot` 構文は v2.88.0+ 必須）:
 
 ```bash
-gh api repos/{owner}/{repo}/collaborators/Copilot/permission 2>/dev/null
+gh --version | head -1
 ```
 
-でリポジトリに Copilot がインストールされているか確認する。
-`owner/repo` は `gh repo view --json nameWithOwner -q .nameWithOwner` で取得する。
-成功（200 応答）した場合は `USE_COPILOT_PR=true` に設定する。
+バージョンが 2.88.0 未満の場合は `USE_COPILOT_PR=false` のまま進む。
+
+バージョン要件を満たす場合、PR に Copilot をリクエストしてみて成功するかで判定する:
+
+```bash
+gh pr edit $PR_NUMBER --add-reviewer @copilot 2>/dev/null && echo "copilot: available" || echo "copilot: not available"
+```
+
+成功した場合は `USE_COPILOT_PR=true` に設定する。
+失敗した場合（Copilot App が未インストール等）は `USE_COPILOT_PR=false` のまま進む。
+
 
 利用可能なレビュアーをユーザーに通知する（例: 「レビュアー: Claude + Codex + GitHub Copilot PR」）。
 
@@ -71,7 +81,7 @@ gh api repos/{owner}/{repo}/collaborators/Copilot/permission 2>/dev/null
 
 以下を実行する:
 
-- `git push -u origin HEAD` で現在のブランチをリモートにプッシュする（PR へのプッシュにより Copilot の再レビューが必要なため、毎イテレーションで実行する）
+- `git push -u origin HEAD` で現在のブランチをリモートにプッシュする
 - `git diff main...HEAD` で最新の差分を取得する
 
 `PR_NUMBER` が未設定の場合は PR を作成し、`PR_NUMBER` を取得する:
@@ -111,28 +121,26 @@ codex review --base main
 
 **GitHub Copilot PR レビュー（`USE_COPILOT_PR=true` の場合）**
 
-1. Copilot をレビュアーにアサインする:
+Copilot のレビューは遅延して届くことがある。各イテレーションで「届いているかどうか」をノンブロッキングに確認し、届いていれば取り込む。届いていなければスキップして Claude / Codex のレビューのみで進める。
+
+1. Copilot のレビュー状態を確認する（待たずに即チェック）:
 
    ```bash
-   gh pr edit $PR_NUMBER --add-reviewer Copilot
+   gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login == "copilot-pull-request-reviewer") | .state'
    ```
 
-2. Copilot のレビュー完了を待つ。30 秒おきに最大 10 分ポーリングする:
+   状態が `COMMENTED` または `CHANGES_REQUESTED` であればレビュー済みとみなす。未着（空または `PENDING`）の場合はスキップ。
 
-   ```bash
-   gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login == "Copilot") | .state'
-   ```
-
-   状態が `COMMENTED` または `CHANGES_REQUESTED` になったら完了とみなす。
-
-3. レビューコメントを取得する:
+2. レビュー済みの場合のみ、コメントを取得する:
 
    ```bash
    gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments \
-     --jq '[.[] | select(.user.login | startswith("Copilot")) | {path, line, body}]'
+     --jq '[.[] | select(.user.login | startswith("copilot-pull-request-reviewer")) | {path, line, body}]'
    ```
 
    取得したコメントを共通フォーマットに変換する。
+
+3. 未着の場合はその旨をユーザーに通知する（例: 「Copilot レビュー未着のため今回はスキップ」）。次のイテレーションで再度確認する。
 
 **指摘の統合**
 
