@@ -39,6 +39,15 @@ alias gch='git branch | grep -v "\*" | peco | xargs git checkout'
 alias lg='lazygit'
 # Git END
 
+function mdv() {
+  local file
+  file=$(find "${1:-.}" -name "*.md" -not -path "*/.git/*" 2>/dev/null \
+    | fzf --preview 'glow --style dark {}' \
+          --preview-window 'right:60%:wrap' \
+          --prompt 'Markdown> ')
+  [[ -n "$file" ]] && glow --pager "$file"
+}
+
 alias ll='ls -l'
 alias dce='docker compose exec'
 alias today='date "+%Y-%m-%d"'
