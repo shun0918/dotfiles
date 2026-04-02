@@ -50,6 +50,7 @@ function mdv() {
 
 alias ll='ls -l'
 alias dce='docker compose exec'
+alias dexec='docker exec -it $(docker ps --format "{{.Names}}" | fzf) bash'
 alias today='date "+%Y-%m-%d"'
 
 mkcd () {
