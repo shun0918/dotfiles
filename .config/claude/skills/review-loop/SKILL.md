@@ -2,7 +2,7 @@
 name: review-loop
 description: コードレビューループ。CRITICAL/IMPORTANT な指摘がなくなるまで 自動レビュー→修正→コミット を繰り返す
 argument-hint: [max_iterations]
-allowed-tools: Bash(git *), Bash(codex *), Bash(gh *), Bash(command *), Bash(sleep *), Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash(git *), Bash(codex *), Bash(gh *), Bash(command *), Bash(which *), Bash(sleep *), Read, Grep, Glob, Edit, Write, Task
 ---
 
 # コードレビューループ
@@ -44,7 +44,10 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 - `git diff main...HEAD --name-only` で変更されたファイル一覧を取得
 - `git diff main...HEAD` で差分全体を取得
 - プロジェクトルートに `.review-guidelines.md` があれば Read で読み込む
-- `command -v codex` で Codex CLI の有無を確認 → `USE_CODEX` に設定
+- 以下で Codex CLI のパスを確認 → `CODEX_PATH` に設定し、見つかれば `USE_CODEX=true`:
+  ```bash
+  which codex 2>/dev/null || command -v codex 2>/dev/null || ls /opt/homebrew/bin/codex 2>/dev/null || ls /usr/local/bin/codex 2>/dev/null
+  ```
 - `gh pr view --json number 2>/dev/null` で既存の PR を確認 → `PR_NUMBER` に設定
 
 **GitHub Copilot PR レビューの有効化確認**
@@ -111,13 +114,14 @@ gh pr create --title "<ブランチ名>" --body "review-loop による自動レ�
 
 **Codex CLI によるレビュー（`USE_CODEX=true` の場合）**
 
-Claude のレビューと並列で実行する:
+Claude のレビューと並列で実行する。`$CODEX_PATH` に取得したパスを使い、PATH も明示的に設定する:
 
 ```bash
-codex review --base main
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" "$CODEX_PATH" review --base main 2>&1
 ```
 
 出力結果を収集し、後述の統合フェーズで共通フォーマットに変換する。
+コマンドが失敗した場合（exit code != 0）はその旨を記録し、Claude のレビューのみで続行する。
 
 **GitHub Copilot PR レビュー（`USE_COPILOT_PR=true` の場合）**
 
