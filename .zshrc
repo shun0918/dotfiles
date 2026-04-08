@@ -9,9 +9,7 @@ export LC_ALL=ja_JP.UTF-8
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
-# export AWS_REGION=us-west-2
-# export ANTHROPIC_MODEL='us.anthropic.claude-opus-4-1-20250805-v1:0'
-# export CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192
+CLAUDE_CODE_EFFORT_LEVEL=max
 
 # Linux command START
 alias dc='docker compose'
