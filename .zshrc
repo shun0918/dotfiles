@@ -9,7 +9,10 @@ export LC_ALL=ja_JP.UTF-8
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
-CLAUDE_CODE_EFFORT_LEVEL=max
+export CLAUDE_CODE_EFFORT_LEVEL=max
+alias cc='claude'
+alias ccd='claude --dangerously-skip-permissions'
+alias ccp='pbpaste | perl -pe "s/\e\[[0-9;]*[A-Za-z]//g; s/[ \t]+$//" | pbcopy'
 
 # Linux command START
 alias dc='docker compose'
