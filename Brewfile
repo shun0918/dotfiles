@@ -19,6 +19,8 @@ brew "hashicorp/tap/terraform"
 brew "hashicorp/tap/terraform-ls"
 brew "tmux"
 brew "tree"
+brew "zsh-autosuggestions"
+brew "zsh-syntax-highlighting"
 
 cask "brave-browser"
 cask "claude-code"

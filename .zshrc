@@ -115,3 +115,14 @@ if [ -f '/Users/shun/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/shun/googl
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/shun/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/shun/google-cloud-sdk/completion.zsh.inc'; fi
 export PATH="$HOME/.local/bin:$PATH"
+
+# Plugins (must be after compinit; syntax-highlighting must be sourced LAST)
+HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
+
+# zsh-autosuggestions (inline ghost text)
+[ -f "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && \
+  source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+
+# zsh-syntax-highlighting (MUST be last)
+[ -f "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && \
+  source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
