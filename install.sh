@@ -87,6 +87,15 @@ create_gitconfig_local
 [ ! -f "$HOME/Brewfile.local" ] && [ -f "$DOTFILES_DIR/Brewfile.local.template" ] && \
     cp "$DOTFILES_DIR/Brewfile.local.template" "$HOME/Brewfile.local"
 
+# Install fzf-tab (not available in Homebrew)
+FZF_TAB_DIR="$HOME/.zsh/fzf-tab"
+if [ ! -d "$FZF_TAB_DIR" ]; then
+    mkdir -p "$HOME/.zsh"
+    git clone --depth 1 https://github.com/Aloxaf/fzf-tab "$FZF_TAB_DIR"
+else
+    git -C "$FZF_TAB_DIR" pull --ff-only || true
+fi
+
 # Install packages
 brew bundle --file="$DOTFILES_DIR/Brewfile"
 [ -f "$HOME/Brewfile.local" ] && brew bundle --file="$HOME/Brewfile.local"

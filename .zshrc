@@ -119,6 +119,16 @@ export PATH="$HOME/.local/bin:$PATH"
 # Plugins (must be after compinit; syntax-highlighting must be sourced LAST)
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
 
+# fzf-tab
+[ -f "$HOME/.zsh/fzf-tab/fzf-tab.plugin.zsh" ] && \
+  source "$HOME/.zsh/fzf-tab/fzf-tab.plugin.zsh"
+
+zstyle ':completion:*' menu no
+zstyle ':completion:*:descriptions' format '[%d]'
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+zstyle ':fzf-tab:*' switch-group ',' '.'
+zstyle ':fzf-tab:complete:cd:*' fzf-preview 'tree -C -L 1 $realpath 2>/dev/null || ls -la $realpath'
+
 # zsh-autosuggestions (inline ghost text)
 [ -f "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && \
   source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
