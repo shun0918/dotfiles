@@ -123,6 +123,10 @@ endfunction
 " <CR> (Enter) で補完候補を確定
 inoremap <silent><expr> <CR> pumvisible() ? coc#_select_confirm() : "\<C-g>u\<CR>"
 
+" 明示的に補完を呼び出す (Ctrl-Space / 端末が C-@ を送る場合の両対応)
+inoremap <silent><expr> <C-Space> coc#refresh()
+inoremap <silent><expr> <C-@> coc#refresh()
+
 " カーソル下の単語のドキュメント・型情報を表示 (ノーマルモードでK)
 nnoremap <silent> K :call ShowDocumentation()<CR>
 
