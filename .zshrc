@@ -86,6 +86,16 @@ case ":$PATH:" in
 esac
 # pnpm end
 
+# History
+HISTFILE=$HOME/.zsh_history
+HISTSIZE=100000
+SAVEHIST=100000
+setopt INC_APPEND_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS HIST_VERIFY EXTENDED_HISTORY
+
+# Completion
+autoload -Uz compinit
+compinit -C
+
 if [ -f "$HOME/.zshrc_local" ]; then
     source "$HOME/.zshrc_local"
 fi
