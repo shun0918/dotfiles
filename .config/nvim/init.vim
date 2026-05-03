@@ -209,11 +209,7 @@ EOF
 let g:vim_svelte_plugin_load_full_syntax = 1
 let g:vim_svelte_plugin_use_typescript = 1
 
-" Terraform ファイルタイプの設定
-augroup terraform_ft
-  autocmd!
-  autocmd BufNewFile,BufRead *.tf,*.tfvars set filetype=terraform
-augroup END
+" Terraform: Neovim 0.10+ の組み込み判定 (*.tf→terraform, *.tfvars→terraform-vars) に任せる
 
 " Svelte ファイルタイプの設定
 augroup svelte_ft
