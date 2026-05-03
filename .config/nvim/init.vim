@@ -157,13 +157,12 @@ cmp.setup({
   }),
 })
 
--- LSP setup (各サーバーに cmp の capabilities を渡す)
+-- LSP setup (Neovim 0.11+ の新 API: vim.lsp.config / vim.lsp.enable)
+-- nvim-lspconfig v2+ は lsp/<server>.lua を自動 discover するので
+-- vim.lsp.enable() を呼ぶだけで設定が読み込まれる
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
-local lspconfig = require('lspconfig')
-
-for _, server in ipairs({ 'ts_ls', 'svelte', 'biome', 'lua_ls', 'terraformls' }) do
-  lspconfig[server].setup({ capabilities = capabilities })
-end
+vim.lsp.config('*', { capabilities = capabilities })
+vim.lsp.enable({ 'ts_ls', 'svelte', 'biome', 'lua_ls', 'terraformls' })
 
 -- LSP キーマップ (LspAttach autocmd で buffer-local に貼る)
 vim.api.nvim_create_autocmd('LspAttach', {
