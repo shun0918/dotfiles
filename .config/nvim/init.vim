@@ -53,8 +53,7 @@ Plug 'projekt0n/github-nvim-theme'
 
 " Add your plugins here:
 " Example plugins (uncomment to use):
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
-Plug 'junegunn/fzf.vim'
+Plug 'ibhagwan/fzf-lua'
 " Plug 'dracula/vim', { 'as': 'dracula' }
 " Plug 'vim-airline/vim-airline'
 " Plug 'preservim/nerdtree' " File system explorer
@@ -95,9 +94,12 @@ catch /^Vim\%((\a\+)\)\=:E185/
   " Colorscheme not found.
 endtry
 
-" fzf.vim のショートカット
-nnoremap <leader>f :Files<CR>
-nnoremap <leader>g :Rg<CR>
+" fzf-lua のショートカット
+nnoremap <leader>f <cmd>FzfLua files<CR>
+nnoremap <leader>g <cmd>FzfLua live_grep<CR>
+nnoremap <leader>b <cmd>FzfLua buffers<CR>
+nnoremap <leader>/ <cmd>FzfLua blines<CR>
+nnoremap <leader>: <cmd>FzfLua command_history<CR>
 
 " lazygit のショートカット
 nnoremap <leader>lg :LazyGit<CR>
@@ -165,17 +167,19 @@ vim.lsp.config('*', { capabilities = capabilities })
 vim.lsp.enable({ 'ts_ls', 'svelte', 'biome', 'lua_ls', 'terraformls' })
 
 -- LSP キーマップ (LspAttach autocmd で buffer-local に貼る)
+-- 複数候補が出る系は fzf-lua のピッカー、単発系は内蔵 LSP
 vim.api.nvim_create_autocmd('LspAttach', {
   callback = function(ev)
     local opts = { buffer = ev.buf, silent = true }
-    vim.keymap.set('n', 'gd',         vim.lsp.buf.definition,      opts)
-    vim.keymap.set('n', 'gt',         vim.lsp.buf.type_definition, opts)
-    vim.keymap.set('n', 'gi',         vim.lsp.buf.implementation,  opts)
-    vim.keymap.set('n', 'gr',         vim.lsp.buf.references,      opts)
+    local fzf  = require('fzf-lua')
+    vim.keymap.set('n', 'gd',         fzf.lsp_definitions,         opts)
+    vim.keymap.set('n', 'gt',         fzf.lsp_typedefs,            opts)
+    vim.keymap.set('n', 'gi',         fzf.lsp_implementations,     opts)
+    vim.keymap.set('n', 'gr',         fzf.lsp_references,          opts)
     vim.keymap.set('n', 'K',          vim.lsp.buf.hover,           opts)
     vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename,          opts)
-    vim.keymap.set('n', '<leader>ac', vim.lsp.buf.code_action,     opts)
-    vim.keymap.set('n', '<leader>qf', vim.lsp.buf.code_action,     opts)
+    vim.keymap.set('n', '<leader>ac', fzf.lsp_code_actions,        opts)
+    vim.keymap.set('n', '<leader>qf', fzf.lsp_code_actions,        opts)
     vim.keymap.set('n', '[g',         vim.diagnostic.goto_prev,    opts)
     vim.keymap.set('n', ']g',         vim.diagnostic.goto_next,    opts)
   end,
@@ -203,6 +207,14 @@ EOF
 " nvim-autopairs の設定
 lua << EOF
 require('nvim-autopairs').setup{}
+EOF
+
+" fzf-lua の設定
+lua << EOF
+require('fzf-lua').setup({
+  -- 'default' はデフォルト (ボトム), 'ivy' は下部スリム, 'fzf-native' は素の fzf 風
+  { 'default-title' },
+})
 EOF
 
 " vim-svelte-plugin の設定
