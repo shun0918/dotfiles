@@ -58,7 +58,18 @@ Plug 'junegunn/fzf.vim'
 " Plug 'dracula/vim', { 'as': 'dracula' }
 " Plug 'vim-airline/vim-airline'
 " Plug 'preservim/nerdtree' " File system explorer
-Plug 'neoclide/coc.nvim', {'branch': 'release'} " Intellisense engine for Vim8 & Neovim
+" --- LSP & 補完 ---
+Plug 'neovim/nvim-lspconfig'
+Plug 'williamboman/mason.nvim'
+Plug 'williamboman/mason-lspconfig.nvim'
+Plug 'hrsh7th/nvim-cmp'
+Plug 'hrsh7th/cmp-nvim-lsp'
+Plug 'hrsh7th/cmp-buffer'
+Plug 'hrsh7th/cmp-path'
+Plug 'L3MON4D3/LuaSnip'
+Plug 'saadparwaiz1/cmp_luasnip'
+" --- Formatter ---
+Plug 'stevearc/conform.nvim'
 Plug 'tpope/vim-surround'
 Plug 'windwp/nvim-autopairs'
 Plug 'kdheepak/lazygit.nvim' " Lazygit integration
@@ -107,58 +118,88 @@ vnoremap <leader>cf :CopilotChatFix<CR>
 vnoremap <leader>co :CopilotChatOptimize<CR>
 nnoremap <leader>cq :CopilotChatReset<CR>
 
-" coc.nvim のキーマッピング
-" <tab> で補完候補を移動 (もし補完がない場合は次の文字を挿入)
-inoremap <silent><expr> <TAB>
-      \ pumvisible() ? "\<C-n>" :
-      \ CheckBackspace() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+" --- LSP / 補完 / Formatter (Neovim 内蔵 LSP) ---
+lua << EOF
+-- Mason: 言語サーバー管理
+require('mason').setup()
+require('mason-lspconfig').setup({
+  ensure_installed = { 'ts_ls', 'svelte', 'lua_ls' },
+  -- biome: 特定リポでしか使わないので :MasonInstall biome で手動
+  -- terraform-ls: brew 経由で導入済み
+})
 
-function! CheckBackspace() abort
-  let col = col('.') - 1
-  return !col || getline('.')[col - 1] =~ '\s'
-endfunction
+-- nvim-cmp: 補完 UI
+local cmp = require('cmp')
+local luasnip = require('luasnip')
 
-" <CR> (Enter) で補完候補を確定
-inoremap <silent><expr> <CR> pumvisible() ? coc#_select_confirm() : "\<C-g>u\<CR>"
+cmp.setup({
+  snippet = {
+    expand = function(args) luasnip.lsp_expand(args.body) end,
+  },
+  mapping = cmp.mapping.preset.insert({
+    ['<C-Space>'] = cmp.mapping.complete(),
+    ['<CR>']      = cmp.mapping.confirm({ select = true }),
+    ['<Tab>']     = cmp.mapping(function(fallback)
+      if cmp.visible() then cmp.select_next_item()
+      else fallback() end
+    end, { 'i', 's' }),
+    ['<S-Tab>']   = cmp.mapping(function(fallback)
+      if cmp.visible() then cmp.select_prev_item()
+      else fallback() end
+    end, { 'i', 's' }),
+  }),
+  sources = cmp.config.sources({
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+  }, {
+    { name = 'buffer' },
+    { name = 'path' },
+  }),
+})
 
-" 明示的に補完を呼び出す (Ctrl-Space / 端末が C-@ を送る場合の両対応)
-inoremap <silent><expr> <C-Space> coc#refresh()
-inoremap <silent><expr> <C-@> coc#refresh()
+-- LSP setup (各サーバーに cmp の capabilities を渡す)
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+local lspconfig = require('lspconfig')
 
-" カーソル下の単語のドキュメント・型情報を表示 (ノーマルモードでK)
-nnoremap <silent> K :call ShowDocumentation()<CR>
+for _, server in ipairs({ 'ts_ls', 'svelte', 'biome', 'lua_ls', 'terraformls' }) do
+  lspconfig[server].setup({ capabilities = capabilities })
+end
 
-function! ShowDocumentation()
-  if CocAction('hasProvider', 'hover')
-    call CocActionAsync('doHover')
-  else
-    call feedkeys('K', 'in')
-  endif
-endfunction
+-- LSP キーマップ (LspAttach autocmd で buffer-local に貼る)
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(ev)
+    local opts = { buffer = ev.buf, silent = true }
+    vim.keymap.set('n', 'gd',         vim.lsp.buf.definition,      opts)
+    vim.keymap.set('n', 'gt',         vim.lsp.buf.type_definition, opts)
+    vim.keymap.set('n', 'gi',         vim.lsp.buf.implementation,  opts)
+    vim.keymap.set('n', 'gr',         vim.lsp.buf.references,      opts)
+    vim.keymap.set('n', 'K',          vim.lsp.buf.hover,           opts)
+    vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename,          opts)
+    vim.keymap.set('n', '<leader>ac', vim.lsp.buf.code_action,     opts)
+    vim.keymap.set('n', '<leader>qf', vim.lsp.buf.code_action,     opts)
+    vim.keymap.set('n', '[g',         vim.diagnostic.goto_prev,    opts)
+    vim.keymap.set('n', ']g',         vim.diagnostic.goto_next,    opts)
+  end,
+})
 
-" 定義へジャンプ (gd)
-nnoremap <silent> gd <Plug>(coc-definition)
-" 型定義へジャンプ (gt)
-nnoremap <silent> gt <Plug>(coc-type-definition)
-" 実装へジャンプ (gi)
-nnoremap <silent> gi <Plug>(coc-implementation)
-" 参照箇所へジャンプ (gr)
-nnoremap <silent> gr <Plug>(coc-references)
-" 変数をリネーム (<leader>rn)
-nnoremap <silent> <leader>rn <Plug>(coc-rename)
-
-" Code Action / QuickFix (<leader>ac)
-nmap <leader>ac <Plug>(coc-codeaction-cursor)
-nmap <leader>as <Plug>(coc-codeaction-source)
-
-" 自動修正 (<leader>qf)
-nmap <leader>qf <Plug>(coc-fix-current)
-
-" エラー間の移動 ([g, ]g)
-nmap <silent> [g <Plug>(coc-diagnostic-prev)
-nmap <silent> ]g <Plug>(coc-diagnostic-next)
+-- Format on save (conform.nvim)
+-- 各 ft で「あれば biome、なければ prettier」のチェーン
+require('conform').setup({
+  formatters_by_ft = {
+    javascript      = { 'biome', 'prettier', stop_after_first = true },
+    typescript      = { 'biome', 'prettier', stop_after_first = true },
+    javascriptreact = { 'biome', 'prettier', stop_after_first = true },
+    typescriptreact = { 'biome', 'prettier', stop_after_first = true },
+    json            = { 'biome', 'prettier', stop_after_first = true },
+    css             = { 'prettier' },
+    scss            = { 'prettier' },
+    html            = { 'prettier' },
+    markdown        = { 'prettier' },
+    svelte          = { 'prettier' },
+  },
+  format_on_save = { timeout_ms = 1500, lsp_format = 'fallback' },
+})
+EOF
 
 " nvim-autopairs の設定
 lua << EOF
