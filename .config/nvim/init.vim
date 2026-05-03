@@ -164,6 +164,21 @@ cmp.setup({
 -- vim.lsp.enable() を呼ぶだけで設定が読み込まれる
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
 vim.lsp.config('*', { capabilities = capabilities })
+
+-- ts_ls に typescript-svelte-plugin を渡す。
+-- これにより .svelte ファイル内のシンボルも ts_ls が認識し、
+-- .svelte ファイルからの import / 参照が gr (references) で検出される。
+-- coc 時代の coc-svelte 相当の役割。Mason の svelte-language-server に同梱されている。
+local svelte_ts_plugin = vim.fn.stdpath('data')
+  .. '/mason/packages/svelte-language-server/node_modules/typescript-svelte-plugin'
+vim.lsp.config('ts_ls', {
+  init_options = {
+    plugins = {
+      { name = 'typescript-svelte-plugin', location = svelte_ts_plugin },
+    },
+  },
+})
+
 vim.lsp.enable({ 'ts_ls', 'svelte', 'biome', 'lua_ls', 'terraformls' })
 
 -- LSP キーマップ (LspAttach autocmd で buffer-local に貼る)
@@ -214,6 +229,11 @@ lua << EOF
 require('fzf-lua').setup({
   -- 'default' はデフォルト (ボトム), 'ivy' は下部スリム, 'fzf-native' は素の fzf 風
   { 'default-title' },
+  lsp = {
+    -- references は結果が 1 件 (定義自身のみ) の場合でも picker を出す。
+    -- jump1=true (デフォルト) だと現在位置にジャンプして「無反応」に見える。
+    references = { jump1 = false },
+  },
 })
 EOF
 
