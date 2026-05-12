@@ -201,7 +201,9 @@ vim.api.nvim_create_autocmd('LspAttach', {
 })
 
 -- Format on save (conform.nvim)
--- 各 ft で「あれば biome、なければ prettier」のチェーン
+-- 各 ft で「あれば biome、なければ prettier」のチェーン。
+-- biome は require_cwd=true により biome.json{,c} があるリポでのみ available。
+-- → biome 設定のないリポでは自動で prettier にフォールバックする。
 require('conform').setup({
   formatters_by_ft = {
     javascript      = { 'biome', 'prettier', stop_after_first = true },
@@ -213,7 +215,10 @@ require('conform').setup({
     scss            = { 'prettier' },
     html            = { 'prettier' },
     markdown        = { 'prettier' },
-    svelte          = { 'prettier' },
+    svelte          = { 'biome', 'prettier', stop_after_first = true },
+  },
+  formatters = {
+    biome = { require_cwd = true },
   },
   format_on_save = { timeout_ms = 1500, lsp_format = 'fallback' },
 })
