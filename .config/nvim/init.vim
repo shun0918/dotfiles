@@ -53,12 +53,22 @@ Plug 'projekt0n/github-nvim-theme'
 
 " Add your plugins here:
 " Example plugins (uncomment to use):
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
-Plug 'junegunn/fzf.vim'
+Plug 'ibhagwan/fzf-lua'
 " Plug 'dracula/vim', { 'as': 'dracula' }
 " Plug 'vim-airline/vim-airline'
 " Plug 'preservim/nerdtree' " File system explorer
-Plug 'neoclide/coc.nvim', {'branch': 'release'} " Intellisense engine for Vim8 & Neovim
+" --- LSP & 補完 ---
+Plug 'neovim/nvim-lspconfig'
+Plug 'williamboman/mason.nvim'
+Plug 'williamboman/mason-lspconfig.nvim'
+Plug 'hrsh7th/nvim-cmp'
+Plug 'hrsh7th/cmp-nvim-lsp'
+Plug 'hrsh7th/cmp-buffer'
+Plug 'hrsh7th/cmp-path'
+Plug 'L3MON4D3/LuaSnip'
+Plug 'saadparwaiz1/cmp_luasnip'
+" --- Formatter ---
+Plug 'stevearc/conform.nvim'
 Plug 'tpope/vim-surround'
 Plug 'windwp/nvim-autopairs'
 Plug 'kdheepak/lazygit.nvim' " Lazygit integration
@@ -84,9 +94,12 @@ catch /^Vim\%((\a\+)\)\=:E185/
   " Colorscheme not found.
 endtry
 
-" fzf.vim のショートカット
-nnoremap <leader>f :Files<CR>
-nnoremap <leader>g :Rg<CR>
+" fzf-lua のショートカット
+nnoremap <leader>f <cmd>FzfLua files<CR>
+nnoremap <leader>g <cmd>FzfLua live_grep<CR>
+nnoremap <leader>b <cmd>FzfLua buffers<CR>
+nnoremap <leader>/ <cmd>FzfLua blines<CR>
+nnoremap <leader>: <cmd>FzfLua command_history<CR>
 
 " lazygit のショートカット
 nnoremap <leader>lg :LazyGit<CR>
@@ -107,73 +120,133 @@ vnoremap <leader>cf :CopilotChatFix<CR>
 vnoremap <leader>co :CopilotChatOptimize<CR>
 nnoremap <leader>cq :CopilotChatReset<CR>
 
-" coc.nvim のキーマッピング
-" <tab> で補完候補を移動 (もし補完がない場合は次の文字を挿入)
-inoremap <silent><expr> <TAB>
-      \ pumvisible() ? "\<C-n>" :
-      \ CheckBackspace() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+" --- LSP / 補完 / Formatter (Neovim 内蔵 LSP) ---
+lua << EOF
+-- Mason: 言語サーバー管理
+require('mason').setup()
+require('mason-lspconfig').setup({
+  ensure_installed = { 'ts_ls', 'svelte', 'lua_ls' },
+  -- biome: 特定リポでしか使わないので :MasonInstall biome で手動
+  -- terraform-ls: brew 経由で導入済み
+})
 
-function! CheckBackspace() abort
-  let col = col('.') - 1
-  return !col || getline('.')[col - 1] =~ '\s'
-endfunction
+-- nvim-cmp: 補完 UI
+local cmp = require('cmp')
+local luasnip = require('luasnip')
 
-" <CR> (Enter) で補完候補を確定
-inoremap <silent><expr> <CR> pumvisible() ? coc#_select_confirm() : "\<C-g>u\<CR>"
+cmp.setup({
+  snippet = {
+    expand = function(args) luasnip.lsp_expand(args.body) end,
+  },
+  mapping = cmp.mapping.preset.insert({
+    ['<C-Space>'] = cmp.mapping.complete(),
+    ['<CR>']      = cmp.mapping.confirm({ select = true }),
+    ['<Tab>']     = cmp.mapping(function(fallback)
+      if cmp.visible() then cmp.select_next_item()
+      else fallback() end
+    end, { 'i', 's' }),
+    ['<S-Tab>']   = cmp.mapping(function(fallback)
+      if cmp.visible() then cmp.select_prev_item()
+      else fallback() end
+    end, { 'i', 's' }),
+  }),
+  sources = cmp.config.sources({
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+  }, {
+    { name = 'buffer' },
+    { name = 'path' },
+  }),
+})
 
-" 明示的に補完を呼び出す (Ctrl-Space / 端末が C-@ を送る場合の両対応)
-inoremap <silent><expr> <C-Space> coc#refresh()
-inoremap <silent><expr> <C-@> coc#refresh()
+-- LSP setup (Neovim 0.11+ の新 API: vim.lsp.config / vim.lsp.enable)
+-- nvim-lspconfig v2+ は lsp/<server>.lua を自動 discover するので
+-- vim.lsp.enable() を呼ぶだけで設定が読み込まれる
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+vim.lsp.config('*', { capabilities = capabilities })
 
-" カーソル下の単語のドキュメント・型情報を表示 (ノーマルモードでK)
-nnoremap <silent> K :call ShowDocumentation()<CR>
+-- ts_ls に typescript-svelte-plugin を渡す。
+-- これにより .svelte ファイル内のシンボルも ts_ls が認識し、
+-- .svelte ファイルからの import / 参照が gr (references) で検出される。
+-- coc 時代の coc-svelte 相当の役割。Mason の svelte-language-server に同梱されている。
+local svelte_ts_plugin = vim.fn.stdpath('data')
+  .. '/mason/packages/svelte-language-server/node_modules/typescript-svelte-plugin'
+vim.lsp.config('ts_ls', {
+  init_options = {
+    plugins = {
+      { name = 'typescript-svelte-plugin', location = svelte_ts_plugin },
+    },
+  },
+})
 
-function! ShowDocumentation()
-  if CocAction('hasProvider', 'hover')
-    call CocActionAsync('doHover')
-  else
-    call feedkeys('K', 'in')
-  endif
-endfunction
+vim.lsp.enable({ 'ts_ls', 'svelte', 'biome', 'lua_ls', 'terraformls' })
 
-" 定義へジャンプ (gd)
-nnoremap <silent> gd <Plug>(coc-definition)
-" 型定義へジャンプ (gt)
-nnoremap <silent> gt <Plug>(coc-type-definition)
-" 実装へジャンプ (gi)
-nnoremap <silent> gi <Plug>(coc-implementation)
-" 参照箇所へジャンプ (gr)
-nnoremap <silent> gr <Plug>(coc-references)
-" 変数をリネーム (<leader>rn)
-nnoremap <silent> <leader>rn <Plug>(coc-rename)
+-- LSP キーマップ (LspAttach autocmd で buffer-local に貼る)
+-- 複数候補が出る系は fzf-lua のピッカー、単発系は内蔵 LSP
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(ev)
+    local opts = { buffer = ev.buf, silent = true }
+    local fzf  = require('fzf-lua')
+    vim.keymap.set('n', 'gd',         fzf.lsp_definitions,         opts)
+    vim.keymap.set('n', 'gt',         fzf.lsp_typedefs,            opts)
+    vim.keymap.set('n', 'gi',         fzf.lsp_implementations,     opts)
+    vim.keymap.set('n', 'gr',         fzf.lsp_references,          opts)
+    vim.keymap.set('n', 'K',          vim.lsp.buf.hover,           opts)
+    vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename,          opts)
+    vim.keymap.set('n', '<leader>ac', fzf.lsp_code_actions,        opts)
+    vim.keymap.set('n', '<leader>qf', fzf.lsp_code_actions,        opts)
+    vim.keymap.set('n', '[g',         vim.diagnostic.goto_prev,    opts)
+    vim.keymap.set('n', ']g',         vim.diagnostic.goto_next,    opts)
+  end,
+})
 
-" Code Action / QuickFix (<leader>ac)
-nmap <leader>ac <Plug>(coc-codeaction-cursor)
-nmap <leader>as <Plug>(coc-codeaction-source)
-
-" 自動修正 (<leader>qf)
-nmap <leader>qf <Plug>(coc-fix-current)
-
-" エラー間の移動 ([g, ]g)
-nmap <silent> [g <Plug>(coc-diagnostic-prev)
-nmap <silent> ]g <Plug>(coc-diagnostic-next)
+-- Format on save (conform.nvim)
+-- 各 ft で「あれば biome、なければ prettier」のチェーン。
+-- biome は require_cwd=true により biome.json{,c} があるリポでのみ available。
+-- → biome 設定のないリポでは自動で prettier にフォールバックする。
+require('conform').setup({
+  formatters_by_ft = {
+    javascript      = { 'biome', 'prettier', stop_after_first = true },
+    typescript      = { 'biome', 'prettier', stop_after_first = true },
+    javascriptreact = { 'biome', 'prettier', stop_after_first = true },
+    typescriptreact = { 'biome', 'prettier', stop_after_first = true },
+    json            = { 'biome', 'prettier', stop_after_first = true },
+    css             = { 'prettier' },
+    scss            = { 'prettier' },
+    html            = { 'prettier' },
+    markdown        = { 'prettier' },
+    svelte          = { 'biome', 'prettier', stop_after_first = true },
+  },
+  formatters = {
+    biome = { require_cwd = true },
+  },
+  format_on_save = { timeout_ms = 1500, lsp_format = 'fallback' },
+})
+EOF
 
 " nvim-autopairs の設定
 lua << EOF
 require('nvim-autopairs').setup{}
 EOF
 
+" fzf-lua の設定
+lua << EOF
+require('fzf-lua').setup({
+  -- 'default' はデフォルト (ボトム), 'ivy' は下部スリム, 'fzf-native' は素の fzf 風
+  { 'default-title' },
+  lsp = {
+    -- references は結果が 1 件 (定義自身のみ) の場合でも picker を出す。
+    -- jump1=true (デフォルト) だと現在位置にジャンプして「無反応」に見える。
+    references = { jump1 = false },
+  },
+})
+EOF
+
 " vim-svelte-plugin の設定
 let g:vim_svelte_plugin_load_full_syntax = 1
 let g:vim_svelte_plugin_use_typescript = 1
 
-" Terraform ファイルタイプの設定
-augroup terraform_ft
-  autocmd!
-  autocmd BufNewFile,BufRead *.tf,*.tfvars set filetype=terraform
-augroup END
+" Terraform: Neovim 0.10+ の組み込み判定 (*.tf→terraform, *.tfvars→terraform-vars) に任せる
 
 " Svelte ファイルタイプの設定
 augroup svelte_ft
