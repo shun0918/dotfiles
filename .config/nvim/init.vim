@@ -201,24 +201,50 @@ vim.api.nvim_create_autocmd('LspAttach', {
 })
 
 -- Format on save (conform.nvim)
--- 各 ft で「あれば biome、なければ prettier」のチェーン。
--- biome は require_cwd=true により biome.json{,c} があるリポでのみ available。
--- → biome 設定のないリポでは自動で prettier にフォールバックする。
+-- リポの設定ファイルを見て使う formatter を切り替える:
+--   .oxfmtrc.json{,c} / oxfmt.config.ts → oxfmt → oxlint --fix (両方順に)
+--   biome.json{,c}                      → biome
+--   それ以外                            → prettier
+-- 「両方順次実行」は stop_after_first 付き chain と両立しないため、function 形式を採用。
+local function has_root_file(bufnr, names)
+  local found = vim.fs.find(names, {
+    upward = true,
+    path = vim.api.nvim_buf_get_name(bufnr),
+  })
+  return #found > 0
+end
+
+local function js_formatters(bufnr)
+  if has_root_file(bufnr, { '.oxfmtrc.json', '.oxfmtrc.jsonc', 'oxfmt.config.ts' }) then
+    return { 'oxfmt', 'oxlint' }
+  end
+  if has_root_file(bufnr, { 'biome.json', 'biome.jsonc', '.biome.json', '.biome.jsonc' }) then
+    return { 'biome' }
+  end
+  return { 'prettier' }
+end
+
 require('conform').setup({
   formatters_by_ft = {
-    javascript      = { 'biome', 'prettier', stop_after_first = true },
-    typescript      = { 'biome', 'prettier', stop_after_first = true },
-    javascriptreact = { 'biome', 'prettier', stop_after_first = true },
-    typescriptreact = { 'biome', 'prettier', stop_after_first = true },
-    json            = { 'biome', 'prettier', stop_after_first = true },
+    javascript      = js_formatters,
+    typescript      = js_formatters,
+    javascriptreact = js_formatters,
+    typescriptreact = js_formatters,
+    json            = js_formatters,
     css             = { 'prettier' },
     scss            = { 'prettier' },
     html            = { 'prettier' },
     markdown        = { 'prettier' },
-    svelte          = { 'biome', 'prettier', stop_after_first = true },
+    svelte          = js_formatters,
   },
   formatters = {
-    biome = { require_cwd = true },
+    -- prefer_local: プロジェクトの node_modules/.bin を優先し、
+    -- リポで固定したバージョンと CI の挙動を揃える。
+    -- require_cwd: リポに設定ファイルが無いときは整形しない (誤爆防止)。
+    biome    = { require_cwd = true, prefer_local = 'node_modules/.bin' },
+    oxfmt    = { require_cwd = true, prefer_local = 'node_modules/.bin' },
+    oxlint   = {                     prefer_local = 'node_modules/.bin' },
+    prettier = { require_cwd = true, prefer_local = 'node_modules/.bin' },
   },
   format_on_save = { timeout_ms = 1500, lsp_format = 'fallback' },
 })
