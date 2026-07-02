@@ -224,6 +224,8 @@ local function js_formatters(bufnr)
   return { 'prettier' }
 end
 
+local conform_util = require('conform.util')
+
 require('conform').setup({
   formatters_by_ft = {
     javascript      = js_formatters,
@@ -241,9 +243,21 @@ require('conform').setup({
     -- prefer_local: プロジェクトの node_modules/.bin を優先し、
     -- リポで固定したバージョンと CI の挙動を揃える。
     -- require_cwd: リポに設定ファイルが無いときは整形しない (誤爆防止)。
+    -- cwd: oxlint/oxfmt は CWD 直下の設定ファイルを root config と見なすため、
+    --      buffer のファイルから見上げて見つかったディレクトリで起動する。
+    --      これを指定しないと nvim の getcwd() (例: monorepo ルート) が CWD になり、
+    --      frontend/.oxlintrc.json が nested 扱いされて options.typeAware で落ちる。
     biome    = { require_cwd = true, prefer_local = 'node_modules/.bin' },
-    oxfmt    = { require_cwd = true, prefer_local = 'node_modules/.bin' },
-    oxlint   = {                     prefer_local = 'node_modules/.bin' },
+    oxfmt    = {
+      require_cwd  = true,
+      prefer_local = 'node_modules/.bin',
+      cwd          = conform_util.root_file({ '.oxfmtrc.json', '.oxfmtrc.jsonc', 'oxfmt.config.ts' }),
+    },
+    oxlint   = {
+      require_cwd  = true,
+      prefer_local = 'node_modules/.bin',
+      cwd          = conform_util.root_file({ '.oxlintrc.json', '.oxlintrc.jsonc' }),
+    },
     prettier = { require_cwd = true, prefer_local = 'node_modules/.bin' },
   },
   format_on_save = { timeout_ms = 1500, lsp_format = 'fallback' },
