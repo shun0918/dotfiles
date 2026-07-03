@@ -76,6 +76,13 @@ Plug 'stevearc/oil.nvim' " File explorer (lightweight)
 Plug 'lewis6991/gitsigns.nvim' " Git diff signs in sign column
 Plug 'linrongbin16/gitlinker.nvim' " Open GitHub web page for current file
 Plug 'sindrets/diffview.nvim' " Git diff and file history viewer
+Plug 'hat0uma/csvview.nvim' " CSV viewer
+
+" --- Markdown プレビュー (端末上で画像・テーブル・Mermaid をレンダリング) ---
+" Kitty Graphics Protocol (Ghostty/WezTerm/Kitty) と nvim 0.12+ が必要
+Plug 'nvim-tree/nvim-web-devicons'
+Plug 'delphinus/budoux.lua' " 日本語のフレーズ単位の折り返し
+Plug 'delphinus/md-render.nvim'
 
 " Svelte support
 Plug 'leafOfTree/vim-svelte-plugin'
@@ -384,4 +391,35 @@ nnoremap <leader>dc :DiffviewClose<CR>
 nnoremap <leader>dh :DiffviewFileHistory<CR>
 vnoremap <leader>dh :DiffviewFileHistory<CR>
 nnoremap <leader>df :DiffviewFileHistory %<CR>
+
+" md-render.nvim のキーマップ・autocmd
+" :MdRender 系コマンドは max_width=80 固定で表示が狭くなるため、
+" Lua API を直接呼んで広めの max_width を渡す。狭ければ数字を下げる。
+let g:md_render_max_width = 140
+" <leader>mp: フロートウィンドウでプレビュー
+" <leader>mt: 現在のウィンドウで source/render をトグル
+" <leader>md: 対応記法のデモを表示 (max_width 非対応)
+nnoremap <expr> <leader>mp ':<C-u>lua require("md-render.preview").show({max_width=' . g:md_render_max_width . '})<CR>'
+nnoremap <expr> <leader>mt ':<C-u>lua require("md-render.preview").toggle({max_width=' . g:md_render_max_width . '})<CR>'
+nmap <leader>md <Plug>(md-render-demo)
+" Markdown を開いたら自動で auto モードに入る (Normal=render / Insert=source)
+augroup md_render_auto
+  autocmd!
+  autocmd FileType markdown silent! execute 'lua require("md-render.preview").auto_on({max_width=' . g:md_render_max_width . '})'
+augroup END
+
+" csvview.nvim の設定
+lua << EOF
+require('csvview').setup({
+  keymaps = {
+    textobject_field_inner = { "if", mode = { "o", "x" } },
+    textobject_field_outer = { "af", mode = { "o", "x" } },
+    jump_next_field_end    = { "<Tab>",   mode = { "n", "v" } },
+    jump_prev_field_end    = { "<S-Tab>", mode = { "n", "v" } },
+    jump_next_row          = { "<Enter>",   mode = { "n", "v" } },
+    jump_prev_row          = { "<S-Enter>", mode = { "n", "v" } },
+  },
+})
+EOF
+nnoremap <leader>cv :CsvViewToggle<CR>
 
