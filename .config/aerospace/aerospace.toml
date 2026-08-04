@@ -9,13 +9,13 @@ default-root-container-layout = 'tiles'
 # workspace 1-6 を常設にする
 persistent-workspaces = ['1', '2', '3', '4', '5', '6']
 
-# ウィンドウ間 / 画面端の隙間
-gaps.inner.horizontal = 8
-gaps.inner.vertical = 8
-gaps.outer.left = 8
-gaps.outer.bottom = 8
-gaps.outer.top = 8
-gaps.outer.right = 8
+# ウィンドウ間 / 画面端の隙間 (なし)
+gaps.inner.horizontal = 0
+gaps.inner.vertical = 0
+gaps.outer.left = 0
+gaps.outer.bottom = 0
+gaps.outer.top = 0
+gaps.outer.right = 0
 
 [mode.main.binding]
 # workspace 切替
