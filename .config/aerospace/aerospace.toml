@@ -1,0 +1,60 @@
+# AeroSpace 設定
+# 参考: https://zenn.dev/seiya9726/articles/194dea7e7be36b
+
+config-version = 2
+
+start-at-login = true
+default-root-container-layout = 'tiles'
+
+# workspace 1-6 を常設にする
+persistent-workspaces = ['1', '2', '3', '4', '5', '6']
+
+# ウィンドウ間 / 画面端の隙間
+gaps.inner.horizontal = 8
+gaps.inner.vertical = 8
+gaps.outer.left = 8
+gaps.outer.bottom = 8
+gaps.outer.top = 8
+gaps.outer.right = 8
+
+[mode.main.binding]
+# workspace 切替
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+
+# ウィンドウを workspace へ送る
+alt-shift-1 = 'move-node-to-workspace 1'
+alt-shift-2 = 'move-node-to-workspace 2'
+alt-shift-3 = 'move-node-to-workspace 3'
+alt-shift-4 = 'move-node-to-workspace 4'
+alt-shift-5 = 'move-node-to-workspace 5'
+alt-shift-6 = 'move-node-to-workspace 6'
+
+# workspace 内のウィンドウを順番に巡回
+alt-tab = 'focus --boundaries-action wrap-around-the-workspace dfs-next'
+alt-shift-tab = 'focus --boundaries-action wrap-around-the-workspace dfs-prev'
+
+# AeroSpace 独自の fullscreen (macOS ネイティブ fullscreen とは併用しない)
+alt-enter = 'fullscreen'
+
+# floating ⇔ tiling 切替
+alt-v = 'layout floating tiling'
+
+# alt-h/j/k/l のフォーカス移動は tmux の pane 移動 (M-hjkl) と衝突するため定義しない
+
+# アプリを workspace へ自動振り分け
+[[on-window-detected]]
+if.app-id = 'company.thebrowser.dia'
+run = 'move-node-to-workspace 1'
+
+[[on-window-detected]]
+if.app-id = 'com.cmuxterm.app'
+run = 'move-node-to-workspace 2'
+
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace 3'

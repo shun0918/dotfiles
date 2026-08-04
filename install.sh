@@ -57,6 +57,7 @@ mkdir -p "$HOME/.config"
 link .config/karabiner
 link .config/nvim
 link .config/lazygit
+link .config/aerospace
 
 # Link claude config
 mkdir -p "$HOME/.claude"
