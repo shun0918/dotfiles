@@ -32,7 +32,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "claude-opus-4-7",
+  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -58,7 +58,9 @@
     ]
   },
   "enabledPlugins": {
-    "skill-creator@claude-plugins-official": true
+    "skill-creator@claude-plugins-official": true,
+    "mattpocock-skills@claude-plugins-official": true,
+    "figma@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "anthropic-agent-skills": {
@@ -69,7 +71,7 @@
     }
   },
   "effortLevel": "high",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
-  "skipAutoPermissionPrompt": true,
-  "tui": "fullscreen"
+  "skipAutoPermissionPrompt": true
 }
