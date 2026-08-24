@@ -141,6 +141,24 @@ require('mason-lspconfig').setup({
 local cmp = require('cmp')
 local luasnip = require('luasnip')
 
+-- LuaSnip の FileType/BufWinEnter フックが LSP hover 等の使い捨て floating buffer にも
+-- 反応し、処理中にバッファが破棄されると Invalid buffer id で落ちる (upstream 未修正)。
+-- vim-plug 配下の plugin/*.lua は vimrc 本体より後に読み込まれ、LuaSnip 側が
+-- 同名 augroup を後勝ちで登録し直すため、ここでの上書きは VimEnter まで遅延させる。
+vim.api.nvim_create_autocmd('VimEnter', {
+  callback = function()
+    vim.api.nvim_create_augroup('_luasnip_lazy_load', { clear = true })
+    vim.api.nvim_create_autocmd({ 'BufWinEnter', 'FileType' }, {
+      group = '_luasnip_lazy_load',
+      callback = function(event)
+        if vim.api.nvim_buf_is_valid(event.buf) then
+          require('luasnip.loaders').load_lazy_loaded(event.buf)
+        end
+      end,
+    })
+  end,
+})
+
 cmp.setup({
   snippet = {
     expand = function(args) luasnip.lsp_expand(args.body) end,
@@ -165,6 +183,24 @@ cmp.setup({
     { name = 'path' },
   }),
 })
+
+-- vim.lsp.util.open_floating_preview() が hover 用の使い捨てバッファに対して
+-- 呼ぶ vim.treesitter.start() が、稀にそのバッファが破棄された直後のタイミングで
+-- 実行され Invalid buffer id エラー (hit-enter prompt) になる (upstream 未修正、
+-- neovim/neovim の hover 一貫性チェック #38724 の対象外)。無効なバッファなら
+-- 何もしないようにして、hover 表示がエラーで遮られないようにする。
+do
+  local ts_start = vim.treesitter.start
+  vim.treesitter.start = function(bufnr, ...)
+    if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+    local ok = pcall(ts_start, bufnr, ...)
+    if not ok then
+      return
+    end
+  end
+end
 
 -- LSP setup (Neovim 0.11+ の新 API: vim.lsp.config / vim.lsp.enable)
 -- nvim-lspconfig v2+ は lsp/<server>.lua を自動 discover するので
