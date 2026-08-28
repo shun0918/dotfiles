@@ -116,6 +116,84 @@ if [ -f '/Users/shun/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/shun/googl
 if [ -f '/Users/shun/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/shun/google-cloud-sdk/completion.zsh.inc'; fi
 export PATH="$HOME/.local/bin:$PATH"
 
+# devc START (devcontainer CLI のラッパー)
+# up / rebuild / exec / shell は devcontainer CLI に渡す。
+# stop / down / restart / logs / ps は dev コンテナのラベル
+# (devcontainer.local_folder / com.docker.compose.project) から docker に委譲する
+devc() {
+  local cmd="${1:-help}"
+  (( $# )) && shift
+  local root
+  root=$(_devc_root) || { echo "devc: .devcontainer/devcontainer.json が見つからない" >&2; return 1; }
+  case "$cmd" in
+    up)      devcontainer up --workspace-folder "$root" "$@" ;;
+    rebuild) devcontainer up --workspace-folder "$root" --remove-existing-container "$@" ;;
+    exec)    devcontainer exec --workspace-folder "$root" "$@" ;;
+    shell)   devcontainer exec --workspace-folder "$root" sh -c 'command -v bash >/dev/null && exec bash; exec sh' ;;
+    stop|down|restart|logs|ps) _devc_docker "$root" "$cmd" "$@" ;;
+    *)
+      cat <<'USAGE'
+usage: devc <command> [args]
+  up [args]      devcontainer up (args はそのまま渡す)
+  rebuild        devcontainer up --remove-existing-container
+  exec <cmd...>  コンテナ内でコマンド実行
+  shell          コンテナ内のシェル (bash、無ければ sh)
+  stop           コンテナ停止 (残す)
+  down [-v]      コンテナ削除 (compose 構成なら全サービス。-v で volume も削除)
+  restart [svc]  再起動
+  logs [args]    ログ (例: devc logs -f voice)
+  ps             状態
+USAGE
+      [ "$cmd" = help ] ;;
+  esac
+}
+
+# .devcontainer/devcontainer.json (または .devcontainer.json) を持つ親ディレクトリを探す
+_devc_root() {
+  local d="$PWD"
+  while :; do
+    if [ -f "$d/.devcontainer/devcontainer.json" ] || [ -f "$d/.devcontainer.json" ]; then
+      echo "$d"; return 0
+    fi
+    [ "$d" = / ] && return 1
+    d=$(dirname "$d")
+  done
+}
+
+_devc_docker() {
+  local root="$1" cmd="$2"; shift 2
+  local cid project
+  cid=$(docker ps -aq --filter "label=devcontainer.local_folder=$root" | head -1)
+  if [ -z "$cid" ]; then
+    echo "devc: $root の devcontainer がない (devc up 済み?)" >&2; return 1
+  fi
+  project=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$cid")
+  if [ -n "$project" ]; then
+    case "$cmd" in
+      ps) docker compose -p "$project" ps -a "$@" ;;
+      *)  docker compose -p "$project" "$cmd" "$@" ;;
+    esac
+  else
+    case "$cmd" in
+      stop)    docker stop "$cid" ;;
+      down)    docker rm -f "$cid" ;;
+      restart) docker restart "$cid" ;;
+      logs)    docker logs "$@" "$cid" ;;
+      ps)      docker ps -a --filter "id=$cid" ;;
+    esac
+  fi
+}
+
+if (( $+functions[compdef] )); then
+  _devc() {
+    local -a cmds
+    cmds=(up rebuild exec shell stop down restart logs ps)
+    (( CURRENT == 2 )) && _describe 'devc command' cmds
+  }
+  compdef _devc devc
+fi
+# devc END
+
 # Plugins (must be after compinit; syntax-highlighting must be sourced LAST)
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
 
