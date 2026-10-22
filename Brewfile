@@ -23,7 +23,6 @@ brew "tree"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
 
-cask "nikitabobko/tap/aerospace"
 cask "brave-browser"
 cask "codex"
 cask "docker-desktop"
