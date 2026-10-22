@@ -2,6 +2,7 @@
 	root = ~/Code
 [core]
 	quotepath = false
+	excludesfile = ~/.gitignore_global
 [push]
 	default = simple
 [diff]

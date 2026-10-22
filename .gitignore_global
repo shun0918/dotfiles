@@ -7,3 +7,6 @@ dump.rdb
 */dump.rdb
 .vscode/
 .idea/
+.ruby-lsp/
+
+**/.claude/settings.local.json
