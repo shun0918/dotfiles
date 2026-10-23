@@ -28,7 +28,7 @@ alias gemptym='git commit --allow-empty -m "空コミット"'
 alias gempty='git commit --allow-empty -m'
 alias gpub='git push -u origin $(git rev-parse --abbrev-ref @) | grep -v "master"'
 alias gbdeldiff='git branch --merged | egrep -v '\*' | xargs git branch -d'
-alias gch='git branch | grep -v "\*" | peco | xargs git checkout'
+alias gch='git branch | grep -v "\*" | fzf | xargs git checkout'
 alias lg='lazygit'
 # Git END
 
@@ -52,7 +52,7 @@ mkcd () {
 
 function repo () {
   local dir
-  dir=$(ghq list -p | peco)
+  dir=$(ghq list -p | fzf)
   cd $dir
 }
 
