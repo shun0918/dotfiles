@@ -29,7 +29,7 @@ coder dotfiles -y https://github.com/your-username/dotfiles.git
   - Installs packages from `Brewfile`
   - Creates `~/.zshrc_local`, `~/.gitconfig.local`, and `~/Brewfile.local` from templates
 - Linux
-  - Installs `nvim`, `fzf`, `rg`, `lazygit` from GitHub Releases into `~/.local` (no Homebrew)
+  - Installs `nvim`, `fzf`, `rg`, `lazygit`, `herdr` from GitHub Releases into `~/.local` (no Homebrew)
   - Links shell aliases to `~/.bash_aliases`
 
 ## File structure

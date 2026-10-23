@@ -53,4 +53,14 @@ else
 fi
 ln -sf "$NVIM_DIR/bin/nvim" "$BIN_DIR/nvim"
 
+# Install herdr (the asset is a single binary)
+# The official installer and `herdr update` download from herdr.dev, which Coder cannot reach
+if [ -x "$BIN_DIR/herdr" ]; then
+    echo "Already installed: herdr"
+else
+    curl -fsSL -o "$BIN_DIR/herdr" "https://github.com/herdrdev/herdr/releases/latest/download/herdr-linux-${ARCH/arm64/aarch64}"
+    chmod +x "$BIN_DIR/herdr"
+    echo "Installed: herdr"
+fi
+
 echo "Done! Restart your shell or run: source ~/.bashrc"
