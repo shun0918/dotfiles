@@ -50,8 +50,11 @@ if empty(glob('~/.local/share/nvim/site/autoload/plug.vim'))
   silent !curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
   " 起動時に無かった site/ は autoload の探索対象にならず plug#begin が未定義になるので、直接読み込む
   source ~/.local/share/nvim/site/autoload/plug.vim
-  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
 endif
+" 未インストールのプラグインがあれば起動時に入れる (初回起動を途中で閉じても次の起動で入る)
+autocmd VimEnter * if len(filter(values(g:plugs), '!isdirectory(v:val.dir)'))
+  \| PlugInstall --sync | source $MYVIMRC
+\| endif
 
 " Plugin settings
 call plug#begin() " For Neovim, we can let it use the default path
