@@ -28,9 +28,18 @@ set t_Co=256 " 256色表示を有効化
 
 " マウスとクリップボード設定
 set mouse=a " マウス操作を有効化
-set clipboard=unnamed " ヤンクでシステムクリップボードにコピー
 if has('mac')
+  set clipboard=unnamed " ヤンクでシステムクリップボードにコピー
   set clipboard+=unnamedplus " macOSでシステムクリップボードを使用
+else
+  " Linux (Coder など) はクリップボードツールがないので OSC 52 で手元の端末にコピーする。
+  " clipboard=unnamed にすると p のたびに端末へ OSC 52 の読み取り要求が飛び、遅い上に確認が出るため、
+  " "+ レジスタだけ OSC 52 にして、通常のヤンクは TextYankPost で "+ にも送る
+  let g:clipboard = 'osc52'
+  augroup osc52_yank
+    autocmd!
+    autocmd TextYankPost * if v:event.operator ==# 'y' && v:event.regname ==# '' | call setreg('+', v:event.regcontents, v:event.regtype) | endif
+  augroup END
 endif
 
 
