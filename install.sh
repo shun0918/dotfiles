@@ -33,6 +33,7 @@ link() {
 mkdir -p "$HOME/.config"
 link .config/nvim
 link .config/lazygit
+link .config/shell
 
 # Link claude config (shared by all OS)
 mkdir -p "$HOME/.claude"
