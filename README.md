@@ -1,8 +1,10 @@
 # dotfiles
 
-Personal dotfiles for macOS
+Personal dotfiles for macOS and Linux (Coder)
 
 ## Installation
+
+### macOS
 
 ```bash
 git clone https://github.com/your-username/dotfiles.git ~/dotfiles
@@ -10,15 +12,30 @@ cd ~/dotfiles
 ./install.sh
 ```
 
+### Linux (Coder)
+
+Run in the workspace. It clones the repo to `~/.config/coderv2/dotfiles` and runs `install.sh`.
+
+```bash
+coder dotfiles -y https://github.com/your-username/dotfiles.git
+```
+
 ## What it does
 
-- Installs Homebrew (if not installed)
-- Creates symlinks for dotfiles (`.zshrc`, `.gitconfig`, `.tmux.conf`, etc.)
-- Installs packages from `Brewfile`
-- Creates `~/.zshrc_local`, `~/.gitconfig.local`, and `~/Brewfile.local` from templates
+- Creates symlinks for shared config (`nvim`, `lazygit`, shell aliases, Claude `CLAUDE.md` / skills / agents)
+- macOS
+  - Installs Homebrew (if not installed)
+  - Creates symlinks for dotfiles (`.zshrc`, `.gitconfig`, `.tmux.conf`, etc.)
+  - Installs packages from `Brewfile`
+  - Creates `~/.zshrc_local`, `~/.gitconfig.local`, and `~/Brewfile.local` from templates
+- Linux
+  - Installs `nvim`, `fzf`, `rg`, `lazygit` from GitHub Releases into `~/.local` (no Homebrew)
+  - Links shell aliases to `~/.bash_aliases`
 
 ## File structure
 
+- `install.sh` - Entry point. Links shared config and runs `os/macos.sh` or `os/linux.sh`
+- `.config/shell/aliases.sh` - Aliases and functions shared by zsh and bash
 - `Brewfile` - Common packages (tracked in git)
 - `Brewfile.local` - Machine-specific packages (ignored in git)
 - `.zshrc` - Common shell configuration (tracked in git)
