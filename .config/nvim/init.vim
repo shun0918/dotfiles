@@ -144,7 +144,11 @@ nnoremap <leader>cq :CopilotChatReset<CR>
 " --- LSP / 補完 / Formatter (Neovim 内蔵 LSP) ---
 lua << EOF
 -- Mason: 言語サーバー管理
-require('mason').setup()
+require('mason').setup({
+  -- 既定は api.mason-registry.dev → gh / GitHub API の順。Coder など前者に届かない環境では
+  -- curl / wget のタイムアウトと再試行で 10 分以上止まり LSP が入らないので、gh / GitHub API を先にする
+  providers = { 'mason.providers.client', 'mason.providers.registry-api' },
+})
 require('mason-lspconfig').setup({
   ensure_installed = { 'ts_ls', 'svelte', 'lua_ls' },
   -- biome: 特定リポでしか使わないので :MasonInstall biome で手動
