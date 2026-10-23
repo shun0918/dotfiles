@@ -5,6 +5,9 @@ Brewfile.local
 Brewfile.local.lock.json
 .config/karabiner/automatic_backups
 
+# Skills synced from claude.ai by Claude Code
+.config/claude/skills/synced/
+
 # Vim plugin directory
 .vim/plugged/
 .vim/autoload/
