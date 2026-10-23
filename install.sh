@@ -44,6 +44,7 @@ link .config/claude/agents .claude/agents
 # OS specific setup
 case "$(uname -s)" in
     Darwin) source "$DOTFILES_DIR/os/macos.sh" ;;
+    Linux)  source "$DOTFILES_DIR/os/linux.sh" ;;
     *)
         echo "Unsupported OS: $(uname -s)" >&2
         exit 1
