@@ -18,7 +18,7 @@ link .config/shell/aliases.sh .bash_aliases
 
 # Install a binary from the latest GitHub release (skipped if already installed)
 # Usage: install_release <name> <owner/repo> <asset>
-#   asset: release asset name. "{version}" is replaced with the tag without "v"
+#   asset: release asset name (.tar.gz or .zip). "{version}" is replaced with the tag without "v"
 install_release() {
     local name=$1 repo=$2 asset=$3 tag tmp
 
@@ -30,7 +30,11 @@ install_release() {
     tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")
     tag=${tag##*/}
     tmp=$(mktemp -d)
-    curl -fsSL "https://github.com/$repo/releases/download/$tag/${asset//\{version\}/${tag#v}}" | tar -xz -C "$tmp"
+    curl -fsSL -o "$tmp/asset" "https://github.com/$repo/releases/download/$tag/${asset//\{version\}/${tag#v}}"
+    case "$asset" in
+        *.zip) unzip -q "$tmp/asset" -d "$tmp" ;;
+        *)     tar -xzf "$tmp/asset" -C "$tmp" ;;
+    esac
     install -m 755 "$(find "$tmp" -type f -name "$name" | head -n 1)" "$BIN_DIR/$name"
     rm -rf "$tmp"
     echo "Installed: $name $tag"
@@ -40,6 +44,10 @@ install_release() {
 install_release fzf     junegunn/fzf          "fzf-{version}-linux_${ARCH/x86_64/amd64}.tar.gz"
 install_release rg      BurntSushi/ripgrep    "ripgrep-{version}-${ARCH/arm64/aarch64}-unknown-linux-musl.tar.gz"
 install_release lazygit jesseduffield/lazygit "lazygit_{version}_linux_${ARCH}.tar.gz"
+install_release ghq     x-motemen/ghq         "ghq_linux_${ARCH/x86_64/amd64}.zip"
+
+# Use $HOME as ghq root so existing clones show up too (`ghq get` goes to ~/github.com/...)
+git config --global --get ghq.root > /dev/null || git config --global ghq.root '~'
 
 # Install Neovim (the tarball has bin/, lib/ and share/)
 NVIM_DIR="$HOME/.local/opt/nvim"
