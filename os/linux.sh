@@ -71,4 +71,14 @@ else
     echo "Installed: herdr"
 fi
 
+# Install Codex CLI with the environment's npm (Node is not installed here)
+if [ -x "$BIN_DIR/codex" ]; then
+    echo "Already installed: codex"
+elif command -v npm > /dev/null; then
+    npm install -g --prefix "$HOME/.local" @openai/codex
+    echo "Installed: codex"
+else
+    echo "Skipped: codex (npm not found)"
+fi
+
 echo "Done! Restart your shell or run: source ~/.bashrc"

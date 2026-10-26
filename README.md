@@ -30,6 +30,7 @@ coder dotfiles -y https://github.com/your-username/dotfiles.git
   - Creates `~/.zshrc_local`, `~/.gitconfig.local`, and `~/Brewfile.local` from templates
 - Linux
   - Installs `nvim`, `fzf`, `rg`, `lazygit`, `herdr`, `ghq` from GitHub Releases into `~/.local` (no Homebrew)
+  - Installs `codex` with npm into `~/.local` (skipped if npm is not found)
   - Sets `ghq.root` to `~` if not set
   - Links shell aliases to `~/.bash_aliases`
 
