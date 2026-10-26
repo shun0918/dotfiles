@@ -50,9 +50,10 @@ mkcd () {
   mkdir "$1" && cd "$1"
 }
 
+# Skip repos under hidden dirs in $HOME (e.g. nvim plugins when ghq.root is ~)
 function repo () {
   local dir
-  dir=$(ghq list -p | fzf)
+  dir=$(ghq list -p | grep -v "^$HOME/\." | fzf)
   cd $dir
 }
 
