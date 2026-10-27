@@ -15,6 +15,7 @@ brew "openssl@3", link: true
 brew "ripgrep"
 brew "sops"
 brew "tailscale"
+brew "terminal-notifier"
 brew "hashicorp/tap/terraform"
 brew "hashicorp/tap/terraform-ls"
 brew "tmux"
