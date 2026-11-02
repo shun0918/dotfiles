@@ -31,6 +31,7 @@ coder dotfiles -y https://github.com/your-username/dotfiles.git
 - Linux
   - Installs `nvim`, `fzf`, `rg`, `lazygit`, `herdr`, `ghq` from GitHub Releases into `~/.local` (no Homebrew)
   - Installs `codex` with npm into `~/.local` (skipped if npm is not found)
+  - Installs the gh extension `gh-stack` (skipped if gh is not found)
   - Sets `ghq.root` to `~` if not set
   - Links shell aliases to `~/.bash_aliases`
 

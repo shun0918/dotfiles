@@ -81,4 +81,11 @@ else
     echo "Skipped: codex (npm not found)"
 fi
 
+# Install gh-stack with the environment's gh (gh skips it if already installed)
+if command -v gh > /dev/null; then
+    gh extension install github/gh-stack
+else
+    echo "Skipped: gh-stack (gh not found)"
+fi
+
 echo "Done! Restart your shell or run: source ~/.bashrc"
