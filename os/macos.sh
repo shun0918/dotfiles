@@ -14,8 +14,8 @@ link Brewfile
 # Link .config files
 link .config/karabiner
 
-# Link claude config
-link .config/claude/settings.json .claude/settings.json
+# Claude Code and other tools write to ~/.claude/settings.json, so merge instead of linking
+merge_json .config/claude/settings.json .claude/settings.json
 
 if [ "$LINKS_ONLY" = true ]; then
     echo "Config links updated. Open a new terminal to load the settings."

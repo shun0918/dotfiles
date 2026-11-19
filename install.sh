@@ -7,7 +7,7 @@ for arg in "$@"; do
         --links-only) LINKS_ONLY=true ;;
         -h|--help)
             echo "Usage: $0 [--links-only]"
-            echo "  --links-only  Update config symlinks without installing or updating packages."
+            echo "  --links-only  Update config symlinks and Claude settings without installing or updating packages."
             exit 0
             ;;
         *) echo "Unknown option: $arg" >&2; exit 1 ;;
@@ -49,6 +49,50 @@ link() {
 
     ln -s "$src" "$dest"
     echo "Linked: $1"
+}
+
+merge_json() {
+    local src="$DOTFILES_DIR/$1"
+    local dest="$HOME/${2:-$1}"
+    local tmp
+
+    if [ ! -e "$src" ]; then
+        echo "Skipping missing source: $1"
+        return 0
+    fi
+
+    if [ ! -s "$dest" ]; then
+        rm -f "$dest"
+        mkdir -p "$(dirname "$dest")"
+        cp "$src" "$dest"
+        echo "Copied: $1"
+        return 0
+    fi
+
+    if ! command -v jq > /dev/null; then
+        echo "Skipped: $1 (jq not found)" >&2
+        return 0
+    fi
+
+    # With -e, an empty src fails instead of writing null over dest
+    tmp=$(mktemp "$dest.XXXXXX")
+    if ! jq -e --slurpfile src "$src" '
+        def merge($s):
+            if type == "object" and ($s | type) == "object" then
+                reduce ($s | keys_unsorted[]) as $k (.; .[$k] |= merge($s[$k]))
+            elif type == "array" and ($s | type) == "array" then
+                . + ($s - .)
+            else
+                $s
+            end;
+        merge($src[0])
+    ' "$dest" > "$tmp"; then
+        rm -f "$tmp"
+        echo "Failed to merge: $dest" >&2
+        return 1
+    fi
+    mv "$tmp" "$dest"
+    echo "Merged: $1"
 }
 
 # Link .config files (shared by all OS)
