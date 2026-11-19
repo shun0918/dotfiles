@@ -105,7 +105,6 @@ link .config/shell
 mkdir -p "$HOME/.claude"
 link .config/claude/CLAUDE.md .claude/CLAUDE.md
 link .config/claude/skills .claude/skills
-link .config/claude/agents .claude/agents
 
 # OS specific setup
 case "$(uname -s)" in
