@@ -20,6 +20,31 @@ Run in the workspace. It clones the repo to `~/.config/coderv2/dotfiles` and run
 coder dotfiles -y https://github.com/your-username/dotfiles.git
 ```
 
+## Applying changes on an existing Mac
+
+Most settings are symlinked, so edits take effect the next time the shell or app
+loads them. Reapply links when new config files are added:
+
+```bash
+cd ~/dotfiles
+./install.sh --links-only
+```
+
+This only updates config links; it does not install packages, update fzf-tab, or
+create local config files. Existing files are backed up as `.backup`, `.backup.1`,
+etc., without overwriting previous backups. Missing sources are skipped.
+
+To install missing Homebrew packages without upgrading existing ones:
+
+```bash
+brew bundle --file=~/dotfiles/Brewfile --no-upgrade
+brew bundle --file=~/Brewfile.local --no-upgrade
+```
+
+Open a new terminal afterward. The regular `./install.sh` also installs packages
+and may upgrade them. Packages removed from the Brewfile are not uninstalled
+automatically.
+
 ## What it does
 
 - Creates symlinks for shared config (`nvim`, `lazygit`, shell aliases, Claude `CLAUDE.md` / skills / agents)

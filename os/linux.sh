@@ -1,6 +1,14 @@
 # Linux setup (sourced from install.sh)
 # Homebrew is not used. On Coder only $HOME is persistent, so tools go to ~/.local
 
+# Ubuntu's default ~/.bashrc sources ~/.bash_aliases
+link .config/shell/aliases.sh .bash_aliases
+
+if [ "$LINKS_ONLY" = true ]; then
+    echo "Config links updated. Open a new shell to load the settings."
+    return 0
+fi
+
 BIN_DIR="$HOME/.local/bin"
 mkdir -p "$BIN_DIR"
 
@@ -12,9 +20,6 @@ case "$(uname -m)" in
         exit 1
         ;;
 esac
-
-# Ubuntu's default ~/.bashrc sources ~/.bash_aliases
-link .config/shell/aliases.sh .bash_aliases
 
 # Install a binary from the latest GitHub release (skipped if already installed)
 # Usage: install_release <name> <owner/repo> <asset>

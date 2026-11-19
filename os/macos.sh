@@ -1,17 +1,5 @@
 # macOS setup (sourced from install.sh)
 
-# Install Homebrew if not installed
-if ! command -v brew &> /dev/null; then
-    echo "Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-    # Add to PATH for Apple Silicon
-    if [[ $(uname -m) == 'arm64' ]]; then
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-fi
-
 # Link dotfiles
 link .direnvrc
 link .gitconfig
@@ -28,6 +16,23 @@ link .config/karabiner
 
 # Link claude config
 link .config/claude/settings.json .claude/settings.json
+
+if [ "$LINKS_ONLY" = true ]; then
+    echo "Config links updated. Open a new terminal to load the settings."
+    return 0
+fi
+
+# Install Homebrew if not installed
+if ! command -v brew &> /dev/null; then
+    echo "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Add to PATH for Apple Silicon
+    if [[ $(uname -m) == 'arm64' ]]; then
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+fi
 
 # Function to create .gitconfig.local interactively
 create_gitconfig_local() {

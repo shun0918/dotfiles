@@ -1,6 +1,19 @@
 #!/bin/bash
 set -e
 
+LINKS_ONLY=false
+for arg in "$@"; do
+    case "$arg" in
+        --links-only) LINKS_ONLY=true ;;
+        -h|--help)
+            echo "Usage: $0 [--links-only]"
+            echo "  --links-only  Update config symlinks without installing or updating packages."
+            exit 0
+            ;;
+        *) echo "Unknown option: $arg" >&2; exit 1 ;;
+    esac
+done
+
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Installing dotfiles from $DOTFILES_DIR"
@@ -13,6 +26,11 @@ link() {
     local src="$DOTFILES_DIR/$1"
     local dest="$HOME/${2:-$1}"
 
+    if [ ! -e "$src" ]; then
+        echo "Skipping missing source: $1"
+        return 0
+    fi
+
     if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
         echo "Already linked: $1"
         return 0
@@ -20,9 +38,13 @@ link() {
 
     # Backup existing file/directory/symlink (including broken symlinks)
     if [ -e "$dest" ] || [ -L "$dest" ]; then
-        rm -rf "$dest.backup"
-        mv "$dest" "$dest.backup"
-        echo "Backed up: $1 -> $1.backup"
+        local backup="$dest.backup" suffix=0
+        while [ -e "$backup" ] || [ -L "$backup" ]; do
+            suffix=$((suffix + 1))
+            backup="$dest.backup.$suffix"
+        done
+        mv "$dest" "$backup"
+        echo "Backed up: $dest -> $backup"
     fi
 
     ln -s "$src" "$dest"
