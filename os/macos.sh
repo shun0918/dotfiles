@@ -25,7 +25,6 @@ link Brewfile
 
 # Link .config files
 link .config/karabiner
-link .config/aerospace
 
 # Link claude config
 link .config/claude/settings.json .claude/settings.json
