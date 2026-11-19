@@ -11,7 +11,7 @@ brew "lazygit"
 brew "imagemagick"
 brew "jq"
 brew "neovim"
-brew "openssl@3", link: true
+brew "openssl@3"
 brew "ripgrep"
 brew "sops"
 brew "tailscale"

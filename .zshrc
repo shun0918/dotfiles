@@ -1,6 +1,8 @@
 export PATH="$HOME/.rbenv/bin:$PATH"
 
-export PATH="/opt/homebrew/opt/openssl@1.1/bin:$PATH"
+# Match the OpenSSL version in Brewfile without linking over other versions.
+HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
+export PATH="$HOMEBREW_PREFIX/opt/openssl@3/bin:$PATH"
 
 # LANG
 export LANG=ja_JP.UTF-8
@@ -130,8 +132,6 @@ fi
 # devc END
 
 # Plugins (must be after compinit; syntax-highlighting must be sourced LAST)
-HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
-
 # fzf-tab
 [ -f "$HOME/.zsh/fzf-tab/fzf-tab.plugin.zsh" ] && \
   source "$HOME/.zsh/fzf-tab/fzf-tab.plugin.zsh"
