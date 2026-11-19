@@ -57,7 +57,7 @@ automatically.
 
 ## What it does
 
-- Creates symlinks for shared config (`nvim`, `lazygit`, shell aliases, Claude `CLAUDE.md` / skills / agents)
+- Creates symlinks for shared config (`nvim`, `lazygit`, shell aliases, Claude `CLAUDE.md` / skills)
 - macOS
   - Installs Homebrew (if not installed)
   - Creates symlinks for dotfiles (`.zshrc`, `.gitconfig`, `.tmux.conf`, etc.)
