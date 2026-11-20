@@ -3,7 +3,6 @@
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
-export CLAUDE_CODE_EFFORT_LEVEL=max
 alias cc='claude'
 alias ccd='claude --dangerously-skip-permissions'
 
