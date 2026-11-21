@@ -2,7 +2,7 @@
 # 会話を共有しない別の Claude Code セッション (claude -p) に <base>...HEAD の差分をレビューさせる。
 #
 # usage: claude-review.sh <base-ref>    例: claude-review.sh origin/develop
-# exit 0: レビュー完了 (0 件を含む)。exit 1: レビューできなかった。0 件と取り違えないこと
+# exit 0: レビュー完了 (0 件を含む)。0 以外: レビューできなかった。0 件と取り違えないこと
 # env: CLAUDE_REVIEW_MODEL (既定 opus)、CLAUDE_REVIEW_EFFORT (既定 xhigh)
 set -euo pipefail
 
@@ -30,7 +30,7 @@ git rev-parse --verify --quiet "${base}^{commit}" >/dev/null || fail "base '$bas
 out_dir="${TMPDIR:-/tmp}"
 out_dir="${out_dir%/}/claude-review"
 mkdir -p "$out_dir"
-out="$out_dir/$(basename "$root")-$(date +%Y%m%d-%H%M%S).json"
+out="$(mktemp "$out_dir/$(basename "$root").XXXXXX")"
 
 schema='{
   "type": "object",
@@ -111,7 +111,7 @@ fi
 
 jq -r --arg root "$root" '
   "Claude 別セッションのレビュー: \(.structured_output.findings | length) 件 (\(.modelUsage | keys | join(", ")), \(.duration_ms / 1000 | floor) 秒)",
-  "セッションを開く: cd \($root) && claude --resume \(.session_id)",
+  "セッションを開く: cd \($root | @sh) && claude --resume \(.session_id)",
   "",
   (.structured_output.findings[] |
     "[\(.severity)] \(.file):\(.line)  (ソース: Claude 別セッション)",
