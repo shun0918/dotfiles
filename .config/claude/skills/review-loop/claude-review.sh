@@ -59,8 +59,8 @@ schema='{
 # Bash は渡さない。settings の allow (Bash(git:*) など) が効いて書き込み系のコマンドまで通るため。
 # skill・MCP・hook も切る。skill 一覧と MCP で文脈が約 5 倍に膨らみ、SessionStart hook は skill の起動を促す。
 {
-  cat <<EOF
-あなたはこのブランチの変更を書いていないレビュアー。<diff> の差分 ($base...HEAD) をレビューする。<commits> は各コミットのメッセージ。
+  printf 'あなたはこのブランチの変更を書いていないレビュアー。<diff> の差分 (%s...HEAD) をレビューする。<commits> は各コミットのメッセージ。\n' "$base"
+  cat <<'EOF'
 
 ## 進め方
 - 差分だけで判断しない。Read / Grep / Glob で呼び出し元・型・テスト・関連ファイルを読んで裏を取る
