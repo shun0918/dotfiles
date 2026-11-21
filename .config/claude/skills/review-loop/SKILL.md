@@ -2,7 +2,7 @@
 name: review-loop
 description: コードレビューループ。CRITICAL/IMPORTANT な指摘がなくなるまで 自動レビュー→修正→コミット を繰り返す
 argument-hint: [max_iterations]
-allowed-tools: Bash(git *), Bash(codex *), Bash(gh *), Bash(command *), Bash(which *), Bash(~/.claude/skills/review-loop/claude-review.sh *), Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash(git *), Bash(codex *), Bash(command *), Bash(which *), Bash(~/.claude/skills/review-loop/claude-review.sh *), Read, Grep, Glob, Edit, Write, Task
 ---
 
 # コードレビューループ
@@ -20,6 +20,7 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 - **外部ガイドライン**: プロジェクトルートに `.review-guidelines.md` があればそれを参照する
 - **マルチレビュアー**: Codex CLI や Claude の別セッション (`claude -p`) が使える場合は指摘を統合する。別セッションはこの会話を共有しないので、実装の経緯に引きずられずに差分を読む
 - **失敗と 0 件を区別**: 外部レビュアーが失敗した時は「指摘なし」と扱わず、レビューできなかったと記録・報告する
+- **手元で完結**: どのレビュアーも手元の差分を読むので、push や PR 作成はしない
 
 ## 引数
 
@@ -32,7 +33,6 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 - `LOCKED_PATHS`: 振動検出によりロックされたファイルパス一覧
 - `PREV_FINDINGS`: 前イテレーションの CRITICAL/IMPORTANT 指摘一覧（振動検出用）
 - `USE_CODEX`: Codex CLI が利用可能かどうか（true/false）
-- `PR_NUMBER`: GitHub PR 番号（PR が存在する場合）
 - `USE_CLAUDE_SESSION`: Claude の別セッションでレビューできるかどうか（true/false）
 
 ## 手順
@@ -49,8 +49,7 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
   ```bash
   which codex 2>/dev/null || command -v codex 2>/dev/null || ls /opt/homebrew/bin/codex 2>/dev/null || ls /usr/local/bin/codex 2>/dev/null
   ```
-- `gh pr view --json number 2>/dev/null` で既存の PR を確認 → `PR_NUMBER` に設定
-- `command -v claude && ls ~/.claude/skills/review-loop/claude-review.sh` で Claude Code CLI とレビュー用スクリプトを確認 → 両方あれば `USE_CLAUDE_SESSION=true`
+- `command -v claude && command -v jq` で Claude Code CLI と jq を確認 → 両方あれば `USE_CLAUDE_SESSION=true`
 
 利用可能なレビュアーをユーザーに通知する（例: 「レビュアー: 実行エージェント + Codex + Claude 別セッション」）。
 
@@ -60,18 +59,9 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 
 以下のサブステップを繰り返す。終了条件は「手順 4」に記載。
 
-#### 1-A. プッシュと差分取得
+#### 1-A. 差分取得
 
-以下を実行する:
-
-- `git push -u origin HEAD` で現在のブランチをリモートにプッシュする
-- `git diff main...HEAD` で最新の差分を取得する
-
-`PR_NUMBER` が未設定の場合は PR を作成し、`PR_NUMBER` を取得する:
-
-```bash
-gh pr create --title "<ブランチ名>" --body "review-loop による自動レビュー中" --draft
-```
+`git diff main...HEAD` で最新の差分を取得する。
 
 #### 1-B. レビュー（Review フェーズ）
 
@@ -90,7 +80,7 @@ PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" "$CODEX_PATH" review --base main 2
 
 **Claude 別セッションによるレビュー（`USE_CLAUDE_SESSION=true` の場合）**
 
-この会話を共有しない別の Claude Code セッションに差分を読ませる。バックグラウンドで実行する（既定の opus・effort xhigh で数分かかる）:
+この会話を共有しない別の Claude Code セッションに差分を読ませる。バックグラウンドで実行する（既定の opus・effort xhigh では差分の大きさで 5〜15 分かかる）:
 
 ```bash
 ~/.claude/skills/review-loop/claude-review.sh main

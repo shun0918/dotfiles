@@ -15,6 +15,10 @@ fail() {
   exit 1
 }
 
+for cmd in claude jq; do
+  command -v "$cmd" >/dev/null || fail "$cmd が見つからない"
+done
+
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
