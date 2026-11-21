@@ -2,7 +2,7 @@
 name: review-loop
 description: コードレビューループ。CRITICAL/IMPORTANT な指摘がなくなるまで 自動レビュー→修正→コミット を繰り返す
 argument-hint: [max_iterations]
-allowed-tools: Bash(git *), Bash(codex *), Bash(gh *), Bash(command *), Bash(which *), Bash(sleep *), Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash(git *), Bash(codex *), Bash(gh *), Bash(command *), Bash(which *), Bash(~/.claude/skills/review-loop/claude-review.sh *), Read, Grep, Glob, Edit, Write, Task
 ---
 
 # コードレビューループ
@@ -10,7 +10,7 @@ allowed-tools: Bash(git *), Bash(codex *), Bash(gh *), Bash(command *), Bash(whi
 現在のブランチの変更に対して、レビュー→修正→コミットのループを回す。
 CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション数に達するまで繰り返す。
 
-利用可能であれば Codex CLI・GitHub Copilot（PR レビュアー）を追加レビュアーとして活用し、複数の視点を統合する。
+利用可能であれば Codex CLI と Claude の別セッションを追加レビュアーとして活用し、複数の視点を統合する。
 
 ## 設計思想
 
@@ -18,7 +18,8 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 - **重大度フィルタリング**: CRITICAL / IMPORTANT のみ修正する。LOW は最終レポートに記録するだけ
 - **振動検出**: 前イテレーションで修正した箇所が再び指摘された場合、振動（A→B→A）と判定し、現在の状態でロックして次の指摘に進む
 - **外部ガイドライン**: プロジェクトルートに `.review-guidelines.md` があればそれを参照する
-- **マルチレビュアー**: Codex CLI や GitHub Copilot PR レビューが使える場合は指摘を統合する
+- **マルチレビュアー**: Codex CLI や Claude の別セッション (`claude -p`) が使える場合は指摘を統合する。別セッションはこの会話を共有しないので、実装の経緯に引きずられずに差分を読む
+- **失敗と 0 件を区別**: 外部レビュアーが失敗した時は「指摘なし」と扱わず、レビューできなかったと記録・報告する
 
 ## 引数
 
@@ -32,7 +33,7 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
 - `PREV_FINDINGS`: 前イテレーションの CRITICAL/IMPORTANT 指摘一覧（振動検出用）
 - `USE_CODEX`: Codex CLI が利用可能かどうか（true/false）
 - `PR_NUMBER`: GitHub PR 番号（PR が存在する場合）
-- `USE_COPILOT_PR`: GitHub Copilot が PR レビュアーとして利用可能かどうか（true/false）
+- `USE_CLAUDE_SESSION`: Claude の別セッションでレビューできるかどうか（true/false）
 
 ## 手順
 
@@ -49,30 +50,9 @@ CRITICAL / IMPORTANT な指摘がなくなるか、最大イテレーション�
   which codex 2>/dev/null || command -v codex 2>/dev/null || ls /opt/homebrew/bin/codex 2>/dev/null || ls /usr/local/bin/codex 2>/dev/null
   ```
 - `gh pr view --json number 2>/dev/null` で既存の PR を確認 → `PR_NUMBER` に設定
+- `command -v claude && ls ~/.claude/skills/review-loop/claude-review.sh` で Claude Code CLI とレビュー用スクリプトを確認 → 両方あれば `USE_CLAUDE_SESSION=true`
 
-**GitHub Copilot PR レビューの有効化確認**
-
-`PR_NUMBER` が取得できた場合のみ確認を行う。
-
-まず `gh` のバージョンを確認する（`@copilot` 構文は v2.88.0+ 必須）:
-
-```bash
-gh --version | head -1
-```
-
-バージョンが 2.88.0 未満の場合は `USE_COPILOT_PR=false` のまま進む。
-
-バージョン要件を満たす場合、PR に Copilot をリクエストしてみて成功するかで判定する:
-
-```bash
-gh pr edit $PR_NUMBER --add-reviewer @copilot 2>/dev/null && echo "copilot: available" || echo "copilot: not available"
-```
-
-成功した場合は `USE_COPILOT_PR=true` に設定する。
-失敗した場合（Copilot App が未インストール等）は `USE_COPILOT_PR=false` のまま進む。
-
-
-利用可能なレビュアーをユーザーに通知する（例: 「レビュアー: Claude + Codex + GitHub Copilot PR」）。
+利用可能なレビュアーをユーザーに通知する（例: 「レビュアー: 実行エージェント + Codex + Claude 別セッション」）。
 
 変更ファイルが0件の場合は「レビュー対象の変更がありません」と伝えて終了する。
 
@@ -95,9 +75,33 @@ gh pr create --title "<ブランチ名>" --body "review-loop による自動レ�
 
 #### 1-B. レビュー（Review フェーズ）
 
-利用可能なレビュアーに応じて以下を実行する。Claude のレビューと外部ツールの起動は並列で行う。
+利用可能なレビュアーに応じて以下を実行する。外部レビュアー (Codex・Claude 別セッション) を先にバックグラウンドで起動し、待つ間に自分のレビューを行う。
 
-**Claude によるレビュー（常に実行）**
+**Codex CLI によるレビュー（`USE_CODEX=true` の場合）**
+
+バックグラウンドで実行する。`$CODEX_PATH` に取得したパスを使い、PATH も明示的に設定する:
+
+```bash
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" "$CODEX_PATH" review --base main 2>&1
+```
+
+出力結果を収集し、後述の統合フェーズで共通フォーマットに変換する。
+コマンドが失敗した場合（exit code != 0）はその旨を記録し、他のレビュアーで続行する。
+
+**Claude 別セッションによるレビュー（`USE_CLAUDE_SESSION=true` の場合）**
+
+この会話を共有しない別の Claude Code セッションに差分を読ませる。バックグラウンドで実行する（既定の opus・effort xhigh で数分かかる）:
+
+```bash
+~/.claude/skills/review-loop/claude-review.sh main
+```
+
+- 標準出力が共通フォーマットの指摘一覧。先頭行に件数・モデル・所要時間、2 行目にセッションを開くコマンド (`claude --resume <id>`) が出る
+- exit 1 はレビューできなかったということ。指摘 0 件と扱わず、標準エラーの理由を記録して他のレビュアーで続行する
+- レビュアーは読むだけの道具 (Read / Grep / Glob) しか持たないので、テストの実行結果は実行エージェント側で補う
+- モデルと effort は env の `CLAUDE_REVIEW_MODEL` / `CLAUDE_REVIEW_EFFORT` で変えられる
+
+**実行エージェント (自分) によるレビュー（常に実行）**
 
 差分を精読し、以下の観点で指摘を洗い出す:
 
@@ -112,47 +116,13 @@ gh pr create --title "<ブランチ名>" --body "review-loop による自動レ�
 
 **スコープ制限**: 変更されたファイルの変更箇所のみを対象にすること。差分に含まれない既存コードへの指摘は除外する。
 
-**Codex CLI によるレビュー（`USE_CODEX=true` の場合）**
-
-Claude のレビューと並列で実行する。`$CODEX_PATH` に取得したパスを使い、PATH も明示的に設定する:
-
-```bash
-PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" "$CODEX_PATH" review --base main 2>&1
-```
-
-出力結果を収集し、後述の統合フェーズで共通フォーマットに変換する。
-コマンドが失敗した場合（exit code != 0）はその旨を記録し、Claude のレビューのみで続行する。
-
-**GitHub Copilot PR レビュー（`USE_COPILOT_PR=true` の場合）**
-
-Copilot のレビューは遅延して届くことがある。各イテレーションで「届いているかどうか」をノンブロッキングに確認し、届いていれば取り込む。届いていなければスキップして Claude / Codex のレビューのみで進める。
-
-1. Copilot のレビュー状態を確認する（待たずに即チェック）:
-
-   ```bash
-   gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login == "copilot-pull-request-reviewer") | .state'
-   ```
-
-   状態が `COMMENTED` または `CHANGES_REQUESTED` であればレビュー済みとみなす。未着（空または `PENDING`）の場合はスキップ。
-
-2. レビュー済みの場合のみ、コメントを取得する:
-
-   ```bash
-   gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments \
-     --jq '[.[] | select(.user.login | startswith("copilot-pull-request-reviewer")) | {path, line, body}]'
-   ```
-
-   取得したコメントを共通フォーマットに変換する。
-
-3. 未着の場合はその旨をユーザーに通知する（例: 「Copilot レビュー未着のため今回はスキップ」）。次のイテレーションで再度確認する。
-
 **指摘の統合**
 
 各レビュアーの出力を照合し、重複する指摘はひとつにまとめる（同じファイル・同種の問題は統合し、ソースを付記する）。
 統合後の各指摘を以下の構造で列挙する:
 
 ```
-[SEVERITY] ファイルパス:行番号  (ソース: Claude / Codex / Copilot / 複数)
+[SEVERITY] ファイルパス:行番号  (ソース: 実行エージェント / Codex / Claude 別セッション / 複数)
 問題の説明
 推奨する修正
 ```
@@ -224,6 +194,7 @@ SEVERITY は `CRITICAL` / `IMPORTANT` / `LOW` のいずれか:
 ## レビューループ完了
 
 - 実施イテレーション数: N / MAX_ITER
+- レビュアー: 結果を得られたもの（失敗したものは失敗と書く）
 - 修正したファイル数: N
 - 振動検出によりロックしたファイル: （あれば列挙）
 
