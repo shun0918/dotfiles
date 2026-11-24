@@ -12,3 +12,7 @@ Brewfile.local.lock.json
 .vim/plugged/
 .vim/autoload/
 .DS_Store
+
+# dev-orchestrator
+__pycache__/
+*.bak*

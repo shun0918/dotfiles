@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""dev-orchestrator runner: main ワークスペースの常駐ランナー。
+設定（~/.dev-orchestrator/runner-config.json）のジョブを、平日の稼働時間内に一定間隔で実行する。
+- 二重起動しない（runner.lock を flock で保持）
+- 設定は毎周期読み直す（変えても再起動は要らない）
+- 各ジョブは子プロセスとして起動し、timeout で強制終了、出力は log/<job>.log に残す
+- 状態は state/runner-state.json（heartbeat、ジョブごとの最終実行・終了コード・失敗数）
+GitHub などへ書き込む処理は持たない。ジョブが何をするかは cmd 次第。"""
+import datetime, fcntl, json, os, signal, subprocess, sys, time
+from pathlib import Path
+
+HOME = Path.home()
+BASE = HOME / ".dev-orchestrator"
+STATE_DIR, LOG_DIR = BASE / "state", BASE / "log"
+CFG_PATH, STATE_PATH = BASE / "runner-config.json", STATE_DIR / "runner-state.json"
+JST = datetime.timezone(datetime.timedelta(hours=9))
+
+DEFAULT_CFG = {
+    "tick_sec": 30,
+    # 稼働時間（JST）。days は月=0。ワークスペースの強制停止（平日 21:00）に合わせる。
+    "window": {"days": [0, 1, 2, 3, 4], "start": "07:00", "end": "21:00"},
+    "jobs": [
+        {"name": "collect-status", "cmd": ["~/.dev-orchestrator/bin/collect-status"], "every_sec": 300, "timeout_sec": 120},
+        # 投稿は止めておく（--no-post）。変えるときはこの設定を直す。
+        {"name": "pr-review-watch", "cmd": ["~/.local/bin/pr-review-watch", "--no-post"], "every_sec": 900, "timeout_sec": 900},
+    ],
+}
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def iso(t):
+    return t.isoformat(timespec="seconds")
+
+
+def log(msg):
+    line = f"{iso(now().astimezone(JST))} {msg}"
+    with open(LOG_DIR / "runner.log", "a") as f:
+        f.write(line + "\n")
+    print(line, flush=True)  # herdr のペインで見えるように
+
+
+def load_cfg():
+    try:
+        with open(CFG_PATH) as f:
+            return {**DEFAULT_CFG, **json.load(f)}
+    except FileNotFoundError:
+        CFG_PATH.write_text(json.dumps(DEFAULT_CFG, ensure_ascii=False, indent=2))
+        return DEFAULT_CFG
+    except Exception as e:  # 壊れた設定では既定で動かし、理由を残す
+        log(f"config error, using defaults: {e}")
+        return DEFAULT_CFG
+
+
+def in_window(cfg, t):
+    w = cfg.get("window")
+    if not w:
+        return True
+    j = t.astimezone(JST)
+    return j.weekday() in w["days"] and w["start"] <= j.strftime("%H:%M") < w["end"]
+
+
+def write_state(state):
+    tmp = STATE_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False))
+    os.replace(tmp, STATE_PATH)
+
+
+def open_log(name):
+    p = LOG_DIR / f"{name}.log"
+    if p.exists() and p.stat().st_size > 1_000_000:
+        tail = p.read_bytes()[-200_000:]
+        p.write_bytes(tail)
+    return open(p, "ab")
+
+
+def main():
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    lock = open(BASE / "runner.lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("runner already running")
+        return 0
+    env = dict(os.environ)
+    env["PATH"] = f"{HOME}/.local/bin:/usr/local/bin:" + env.get("PATH", "")
+    state = {"pid": os.getpid(), "started_at": iso(now()), "heartbeat_at": iso(now()), "jobs": {}}
+    procs = {}  # name -> (Popen, monotonic start, logfile)
+    stop = {"v": False}
+
+    def on_term(*_):
+        stop["v"] = True
+
+    signal.signal(signal.SIGTERM, on_term)
+    signal.signal(signal.SIGINT, on_term)
+    log(f"runner started pid={os.getpid()}")
+
+    while not stop["v"]:
+        cfg = load_cfg()
+        t = now()
+        jobs = {j["name"]: j for j in cfg["jobs"]}
+        # 終わった／時間切れのジョブを片付ける
+        for name, (p, t0, fh) in list(procs.items()):
+            rc = p.poll()
+            timeout = jobs.get(name, {}).get("timeout_sec", 600)
+            if rc is None and time.monotonic() - t0 > timeout:
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                p.wait()
+                rc = "timeout"
+                log(f"job {name} timed out after {timeout}s")
+            if rc is not None:
+                js = state["jobs"][name]
+                js.update(running=False, last_end=iso(t), last_exit=rc, last_duration_sec=round(time.monotonic() - t0, 1))
+                if rc != 0:
+                    js["failures"] = js.get("failures", 0) + 1
+                    log(f"job {name} FAILED exit={rc} ({js['last_duration_sec']}s)")
+                else:
+                    log(f"job {name} ok ({js['last_duration_sec']}s)")
+                fh.close()
+                del procs[name]
+        # 時間が来たジョブを始める
+        if in_window(cfg, t):
+            for name, j in jobs.items():
+                if j.get("enabled", True) is False or name in procs:
+                    continue
+                js = state["jobs"].setdefault(name, {"runs": 0, "failures": 0})
+                if time.time() - js.get("last_start_epoch", 0) < j["every_sec"]:
+                    continue
+                cmd = [os.path.expanduser(c) for c in j["cmd"]]
+                fh = open_log(name)
+                fh.write(f"\n=== {iso(t)} start\n".encode())
+                fh.flush()
+                try:
+                    p = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                         cwd=str(HOME), env=env, start_new_session=True)
+                except Exception as e:
+                    log(f"job {name} failed to start: {e}")
+                    js.update(last_start_epoch=time.time(), last_exit=f"start-error: {e}", failures=js.get("failures", 0) + 1)
+                    fh.close()
+                    continue
+                log(f"job {name} start")
+                procs[name] = (p, time.monotonic(), fh)
+                js.update(running=True, last_start=iso(t), last_start_epoch=time.time(), runs=js.get("runs", 0) + 1)
+        state["heartbeat_at"] = iso(t)
+        state["in_window"] = in_window(cfg, t)
+        write_state(state)
+        for _ in range(5 if procs else int(cfg.get("tick_sec", 30))):  # 1 秒刻み（停止の合図にすぐ応える）
+            if stop["v"]:
+                break
+            time.sleep(1)
+
+    for name, (p, _, fh) in procs.items():
+        try:
+            os.killpg(p.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    log("runner stopped")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

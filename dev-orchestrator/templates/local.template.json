@@ -1,0 +1,11 @@
+{
+  "docs": {
+    "today":  {"id": "<DOC_ID>", "url": "<DOC_URL>"},
+    "status": {"id": "<DOC_ID>", "url": "<DOC_URL>"},
+    "inbox":  {"id": "<DOC_ID>", "url": "<DOC_URL>"}
+  },
+  "vars": {
+    "SLACK_USER_ID": "<SLACK_USER_ID>",
+    "SLACK_WORKSPACE": "<SLACK_WORKSPACE_SUBDOMAIN>"
+  }
+}

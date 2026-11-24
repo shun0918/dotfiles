@@ -1,0 +1,17 @@
+{
+  "review_orgs": ["<レビュー対象の GitHub org>"],
+  "max_parallel": 2,
+  "model": "opus",
+  "use_codex": true,
+  "large_pr_lines": 3000,
+  "skip_authors": ["dependabot", "dependabot[bot]", "renovate", "renovate[bot]"],
+  "skip_title_patterns": [],
+  "ignore_comment_authors": ["github-actions", "github-actions[bot]"],
+  "local_repo_dirs": ["<リポジトリを clone してある場所（例: ~/work）>"],
+  "claude_timeout_sec": 2400,
+  "codex_timeout_sec": 900,
+  "max_attempts": 2,
+  "summary_review_authors": [],
+  "post_ai_reviews": false,
+  "run_in_herdr": true
+}

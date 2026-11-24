@@ -106,6 +106,23 @@ mkdir -p "$HOME/.claude"
 link .config/claude/CLAUDE.md .claude/CLAUDE.md
 link .config/claude/skills .claude/skills
 
+# dev-orchestrator（秘書・司令塔・PRレビュー）: コードだけをリンクする。
+# 状態・ログ・固有の設定は ~/.dev-orchestrator, ~/.pr-reviews, ~/.config/dev-orchestrator に残り、リポジトリには入らない。
+# 最初の設定は、Claude に「秘書をセットアップして」と頼む（setup-orchestrator skill）。
+mkdir -p "$HOME/.dev-orchestrator" "$HOME/.pr-reviews" "$HOME/.local/bin"
+for d in bin lib prompts roles; do link "dev-orchestrator/orchestrator/$d" ".dev-orchestrator/$d"; done
+for d in bin prompts schemas; do link "dev-orchestrator/pr-reviews/$d" ".pr-reviews/$d"; done
+ln -sf "$HOME/.pr-reviews/bin/pr-review-watch" "$HOME/.local/bin/pr-review-watch"
+ln -sf "$HOME/.dev-orchestrator/bin/feature" "$HOME/.local/bin/feature"
+# 固有の値を誤ってコミットしないための検査を、コミット前に走らせる（既に別のフックがあれば触らない）
+if [ -d "$DOTFILES_DIR/.git/hooks" ] && [ ! -e "$DOTFILES_DIR/.git/hooks/pre-commit" ]; then
+    ln -s "../../dev-orchestrator/scripts/check-private.sh" "$DOTFILES_DIR/.git/hooks/pre-commit"
+fi
+# 設定済みの環境なら、ランナーを起動する（何度実行しても安全）
+if [ "$LINKS_ONLY" != true ] && [ -f "$HOME/.config/dev-orchestrator/local.json" ]; then
+    "$HOME/.dev-orchestrator/bin/ensure-runner" || true
+fi
+
 # OS specific setup
 case "$(uname -s)" in
     Darwin) source "$DOTFILES_DIR/os/macos.sh" ;;

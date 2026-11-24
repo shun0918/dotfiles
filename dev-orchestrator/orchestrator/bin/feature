@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""feature — 1つの機能開発を、herdr の1ワークスペース（リード＋ワーカーのタブ）で回す。
+
+  feature start <name> --repo <path> [--task "..." | --task-file f] [--base <ref>] [--no-worktree]
+      worktree と herdr ワークスペース「feat: <name>」を作り、リード(lead)タブで計画だけ始める。
+  feature approve <name>
+      人間が計画を承認する。APPROVED を作り、実装(impl)タブを作って実装ワーカーを起動する。
+  feature review <name>
+      レビュー(review)タブで、読み取り専用のレビューを走らせる（結果は REVIEW.md）。
+  feature list            機能の一覧と状態
+  feature show <name>     1つの機能の詳細（記録した全エージェント）
+  feature close <name>    herdr ワークスペースだけ閉じる（worktree と記録は残す）
+
+自動起動してよいのは計画(lead)とレビュー(review)＝読み取りだけ。実装は approve されるまで始まらない。
+approve は人間だけが叩く（lead には禁止してある）。AI は GitHub に何も投稿しない・push しない。
+環境変数 FEATURE_CLAUDE_CMD で claude の代わりのコマンドを指定できる（動作確認用）。
+"""
+import argparse, json, os, shlex, shutil, subprocess, sys, time
+from pathlib import Path
+
+HOME = Path.home()
+BASE = HOME / ".dev-orchestrator"
+FEATURES = BASE / "features"
+ROLES = BASE / "roles"
+WORKTREES = BASE / "worktrees"
+CLAUDE = os.environ.get("FEATURE_CLAUDE_CMD", "claude")
+
+
+def now():
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def herdr(*args):
+    exe = shutil.which("herdr") or str(HOME / ".local/bin/herdr")
+    r = subprocess.run([exe, *args], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout or "herdr failed").strip()[:300])
+    return json.loads(r.stdout or "{}")
+
+
+def fdir(name):
+    return FEATURES / name
+
+
+def load(name):
+    p = fdir(name) / "feature.json"
+    if not p.exists():
+        sys.exit(f"機能「{name}」は見つかりません。 feature list で確認してください。")
+    return json.loads(p.read_text())
+
+
+def save(name, d):
+    (fdir(name) / "feature.json").write_text(json.dumps(d, ensure_ascii=False, indent=2))
+
+
+def record(name, role, kind, tab_id, script):
+    """起動した全エージェントを記録する（何を見せるかは後で決める。まず全部残す）。"""
+    with open(fdir(name) / "agents.jsonl", "a") as f:
+        f.write(json.dumps({"ts": now(), "role": role, "kind": kind, "tab_id": tab_id, "script": str(script)},
+                           ensure_ascii=False) + "\n")
+
+
+def write_launcher(name, role, body):
+    """起動コマンドをファイルにして残す（クォート事故を避け、あとから何を走らせたか読める）。"""
+    p = fdir(name) / f"launch-{role}.sh"
+    p.write_text("#!/usr/bin/env bash\nset -u\n" + body + "\n")
+    p.chmod(0o755)
+    return p
+
+
+def run_in_tab(name, role, label, script, kind, d, first=False):
+    ws = d["workspace_id"]
+    if first:
+        tab, pane = d["first_tab"], d["first_pane"]
+        herdr("tab", "rename", tab, label)
+    else:
+        t = herdr("tab", "create", "--workspace", ws, "--label", label, "--cwd", d["worktree"], "--no-focus")
+        tab, pane = t["result"]["tab"]["tab_id"], t["result"]["root_pane"]["pane_id"]
+    herdr("pane", "run", pane, f"bash {shlex.quote(str(script))}")
+    d.setdefault("tabs", {})[role] = tab
+    record(name, role, kind, tab, script)
+    return tab
+
+
+def git(repo, *a):
+    r = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"git {' '.join(a)} に失敗: {r.stderr.strip()}")
+    return r.stdout.strip()
+
+
+# 共通の禁止事項。AI は GitHub に投稿せず、push もしない。
+DENY_COMMON = ["Bash(git push:*)", "Bash(gh pr create:*)", "Bash(gh pr comment:*)", "Bash(gh pr review:*)",
+               "Bash(gh pr merge:*)", "Bash(gh issue comment:*)", "Bash(gh api:*)", "Bash(*feature approve*)"]
+
+
+def q(s):
+    return shlex.quote(s)
+
+
+def cmd_start(a):
+    name = a.name
+    if fdir(name).exists():
+        sys.exit(f"機能「{name}」は既にあります。 feature show {name}")
+    repo = Path(a.repo).expanduser().resolve()
+    if not (repo / ".git").exists():
+        sys.exit(f"{repo} は git リポジトリではありません。")
+    task = Path(a.task_file).read_text() if a.task_file else (a.task or "")
+    if not task.strip():
+        sys.exit("依頼内容がありません。 --task か --task-file を指定してください。")
+    base = a.base or git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    d_ = fdir(name)
+    d_.mkdir(parents=True)
+    branch = f"feat/{name}"
+    if a.no_worktree:
+        wt = repo
+    else:
+        wt = WORKTREES / name
+        WORKTREES.mkdir(parents=True, exist_ok=True)
+        git(repo, "worktree", "add", "-b", branch, str(wt), base)
+    docs = wt / ".feature"   # 依頼・計画・結果の置き場。worktree の中に置く（別ディレクトリだと claude の信頼確認が増えるため）
+    docs.mkdir(exist_ok=True)
+    excl = Path(git(wt, "rev-parse", "--git-common-dir")) 
+    excl = (excl if excl.is_absolute() else wt / excl) / "info" / "exclude"
+    excl.parent.mkdir(exist_ok=True)
+    if ".feature/" not in (excl.read_text() if excl.exists() else ""):
+        with open(excl, "a") as f:
+            f.write(".feature/\n")   # git に載せない（この repo 手元だけの除外設定）
+    (docs / "BRIEF.md").write_text(f"# {name}\n\n{task.strip()}\n")
+    (docs / "PLAN.md").write_text("# 計画\n\n（リードが書きます）\n")
+    d = {"name": name, "repo": str(repo), "branch": branch if not a.no_worktree else base, "base": base,
+         "worktree": str(wt), "docs": str(docs), "state": "planning", "created": now(), "tabs": {}}
+    ws = herdr("workspace", "create", "--label", f"feat: {name}", "--cwd", str(wt), "--no-focus")["result"]
+    d["workspace_id"] = ws["workspace"]["workspace_id"]
+    d["first_tab"] = ws["tab"]["tab_id"] if "tab" in ws else f"{d['workspace_id']}:t1"
+    d["first_pane"] = ws["root_pane"]["pane_id"]
+    prompt = (f"{docs}/BRIEF.md を読み、必要なコードを調べて、{docs}/PLAN.md に計画を書いてください。"
+              f"実装はしません。書けたら要点を私に伝えて止まってください。")
+    allowed = ["Read", "Grep", "Glob", "Bash(git log:*)", "Bash(git diff:*)", "Bash(git status:*)", "Bash(git show:*)",
+               "Bash(ls:*)", f"Write({docs}/PLAN.md)", f"Edit({docs}/PLAN.md)"]
+    body = (f"cd {q(str(wt))}\nexec {CLAUDE} {q(prompt)} \\\n"
+            f"  --append-system-prompt \"$(cat {q(str(ROLES / 'lead.md'))})\" \\\n"
+            f"  --allowedTools {' '.join(q(x) for x in allowed)} \\\n"
+            f"  --disallowedTools {' '.join(q(x) for x in DENY_COMMON)}")
+    script = write_launcher(name, "lead", body)
+    try:
+        run_in_tab(name, "lead", "lead", script, "interactive", d, first=True)
+    finally:
+        save(name, d)
+    print(f"機能「{name}」を始めました。herdr のワークスペース「feat: {name}」の lead タブで計画を作っています。")
+    print(f"  作業ブランチ: {d['branch']}（{wt}）")
+    print(f"  計画ができたら読んで、よければ: feature approve {name}")
+
+
+def cmd_approve(a):
+    d = load(a.name)
+    docs = Path(d["docs"])
+    plan = (docs / "PLAN.md").read_text()
+    if "（リードが書きます）" in plan:
+        sys.exit("PLAN.md がまだ書かれていません。リードの計画を待ってください。")
+    if (fdir(a.name) / "APPROVED").exists():
+        sys.exit("既に承認済みです。")
+    (fdir(a.name) / "APPROVED").write_text(f"approved at {now()} by {os.environ.get('USER', 'human')}\n")
+    prompt = (f"{docs}/BRIEF.md と {docs}/PLAN.md を読み、PLAN.md の範囲で実装してください。"
+              f"終わったら {docs}/RESULT.md に結果を書いてください。")
+    allowed = [f"Write({docs}/RESULT.md)", f"Edit({docs}/RESULT.md)", "Bash(git add:*)", "Bash(git commit:*)",
+               "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)"]
+    body = (f"cd {q(d['worktree'])}\nexec {CLAUDE} {q(prompt)} --permission-mode acceptEdits \\\n"
+            f"  --append-system-prompt \"$(cat {q(str(ROLES / 'impl.md'))})\" \\\n"
+            f"  --allowedTools {' '.join(q(x) for x in allowed)} \\\n"
+            f"  --disallowedTools {' '.join(q(x) for x in DENY_COMMON if 'feature approve' not in x)}")
+    script = write_launcher(a.name, "impl", body)
+    run_in_tab(a.name, "impl", "impl", script, "interactive", d)
+    d["state"] = "implementing"
+    save(a.name, d)
+    print(f"承認しました。ワークスペース「feat: {a.name}」に impl タブを作って、実装ワーカーを起動しました。")
+
+
+def cmd_review(a):
+    d = load(a.name)
+    fd = Path(d["docs"])
+    prompt = (f"{fd}/PLAN.md の計画と照らして、`git diff {d['base']}...HEAD` の変更をレビューしてください。")
+    allowed = ["Read", "Grep", "Glob", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)", "Bash(git status:*)"]
+    body = (f"cd {q(d['worktree'])}\n"
+            f"{CLAUDE} -p {q(prompt)} --permission-mode dontAsk --no-session-persistence \\\n"
+            f"  --append-system-prompt \"$(cat {q(str(ROLES / 'review.md'))})\" \\\n"
+            f"  --allowedTools {' '.join(q(x) for x in allowed)} \\\n"
+            f"  --disallowedTools {' '.join(q(x) for x in DENY_COMMON)} 2>&1 | tee {q(str(fd / 'REVIEW.md'))}\n"
+            f"echo; echo '[レビュー終了。結果は {fd}/REVIEW.md]'; exec bash")
+    script = write_launcher(a.name, "review", body)
+    run_in_tab(a.name, "review", "review", script, "headless", d)
+    d["state"] = "reviewing"
+    save(a.name, d)
+    print(f"review タブでレビューを始めました。結果は {fd}/REVIEW.md に出ます。")
+
+
+def cmd_list(_):
+    if not FEATURES.exists():
+        print("機能はまだありません。")
+        return
+    for p in sorted(FEATURES.glob("*/feature.json")):
+        d = json.loads(p.read_text())
+        print(f"{d['name']:24} {d['state']:13} {d['branch']:28} {d['repo']}")
+
+
+def cmd_show(a):
+    d = load(a.name)
+    print(json.dumps(d, ensure_ascii=False, indent=2))
+    ap = fdir(a.name) / "agents.jsonl"
+    if ap.exists():
+        print("\n記録したエージェント:")
+        print(ap.read_text())
+
+
+def cmd_close(a):
+    d = load(a.name)
+    try:
+        herdr("workspace", "close", d["workspace_id"])
+    except Exception as e:
+        print(f"herdr のワークスペースを閉じられませんでした: {e}")
+    d["state"] = d["state"] + " (closed)" if "closed" not in d["state"] else d["state"]
+    save(a.name, d)
+    print("ワークスペースを閉じました。worktree と記録は残してあります。")
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="feature")
+    sp = ap.add_subparsers(dest="c", required=True)
+    s = sp.add_parser("start"); s.add_argument("name"); s.add_argument("--repo", required=True)
+    s.add_argument("--task"); s.add_argument("--task-file"); s.add_argument("--base"); s.add_argument("--no-worktree", action="store_true")
+    s.set_defaults(f=cmd_start)
+    for n, f in (("approve", cmd_approve), ("review", cmd_review), ("show", cmd_show), ("close", cmd_close)):
+        x = sp.add_parser(n); x.add_argument("name"); x.set_defaults(f=f)
+    sp.add_parser("list").set_defaults(f=cmd_list)
+    a = ap.parse_args()
+    a.f(a)
+
+
+if __name__ == "__main__":
+    main()

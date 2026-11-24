@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""司令塔ダッシュボード用の状態収集（読み取り専用）。
+herdr / pr-review-watch の summary.json / Coder CLI から状態を集め、
+~/.dev-orchestrator/state/ に dataset ごとの JSON（{rows, meta}）と bundle.json を書く。
+何も変更しない。失敗した情報源は errors に記録して続行する。"""
+import json, os, subprocess, datetime
+
+HOME = os.path.expanduser("~")
+OUT = os.path.join(HOME, ".dev-orchestrator", "state")
+os.makedirs(OUT, exist_ok=True)
+now = datetime.datetime.now(datetime.timezone.utc)
+errors = []
+
+
+def run(cmd, timeout=25):
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if p.returncode != 0:
+        raise RuntimeError((p.stderr or p.stdout).strip()[:300])
+    return p.stdout
+
+
+def safe(label, fn):
+    try:
+        return fn()
+    except Exception as e:  # 失敗は記録して続行
+        errors.append({"source": label, "message": str(e)[:300]})
+        return None
+
+
+def herdr(*a):
+    return json.loads(run(["herdr", *a]))["result"]
+
+
+def git(path, *a):
+    try:
+        return run(["git", "-C", path, *a], 10).strip()
+    except Exception:
+        return None
+
+
+def flat(v):
+    return json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
+
+
+ws_res = safe("herdr workspace list", lambda: herdr("workspace", "list"))
+ag_res = safe("herdr agent list", lambda: herdr("agent", "list"))
+
+workspaces, agents = [], []
+label_by_id, branch_by_id = {}, {}
+for w in (ws_res or {}).get("workspaces", []):
+    wt = w.get("worktree") or {}
+    path = wt.get("checkout_path")
+    branch = dirty = ahead = last_at = last_subj = None
+    if path and os.path.isdir(path):
+        branch = git(path, "rev-parse", "--abbrev-ref", "HEAD")
+        st = git(path, "status", "--porcelain")
+        dirty = len([l for l in st.splitlines() if l.strip()]) if st is not None else None
+        a = git(path, "rev-list", "--count", "@{u}..HEAD")
+        ahead = int(a) if a and a.isdigit() else None
+        last = git(path, "log", "-1", "--format=%cI%x09%s")
+        if last and "\t" in last:
+            last_at, last_subj = last.split("\t", 1)
+    label_by_id[w["workspace_id"]] = w.get("label")
+    branch_by_id[w["workspace_id"]] = branch
+    workspaces.append({
+        "workspace_id": w["workspace_id"], "label": w.get("label"),
+        "repo": wt.get("repo_name"), "branch": branch,
+        "is_linked_worktree": bool(wt.get("is_linked_worktree")),
+        "path": path, "agent_status": w.get("agent_status"),
+        "pane_count": w.get("pane_count"), "dirty_files": dirty,
+        "unpushed_commits": ahead, "last_commit_at": last_at, "last_commit_subject": last_subj,
+    })
+
+for a in (ag_res or {}).get("agents", []):
+    wid = a.get("workspace_id")
+    agents.append({
+        "pane_id": a.get("pane_id"), "workspace_id": wid,
+        "workspace": label_by_id.get(wid), "branch": branch_by_id.get(wid),
+        "agent": a.get("agent"), "status": a.get("agent_status"),
+        "title": a.get("terminal_title_stripped") or a.get("terminal_title"),
+        "cwd": a.get("cwd"), "focused": bool(a.get("focused")),
+    })
+
+# レビュー受信箱（pr-review-watch の summary.json をそのまま写す）
+reviews, review_meta = [], {}
+def load_reviews():
+    d = json.load(open(os.path.join(HOME, ".pr-reviews/state/summary.json")))
+    review_meta.update({"generated_at": d.get("generated_at"), "login": d.get("login"), "counts": d.get("counts")})
+    for kind, key in (("request", "requests"), ("mine", "my_prs"), ("approved", "approved")):
+        for r in d.get(key) or []:
+            row = {k: flat(v) for k, v in r.items()}
+            row["kind"] = kind
+            reviews.append(row)
+    for e in d.get("errors") or []:
+        errors.append({"source": "pr-review-watch", "message": str(e)[:300]})
+safe("pr-review summary.json", load_reviews)
+
+# Coder ワークスペース（main 内の coder CLI は未ログインのため、収集はデスクトップ側の Coder ツールが担当する）
+coder = []
+def load_coder():
+    for w in json.loads(run(["coder", "list", "-o", "json"], 40)):
+        lb = w.get("latest_build") or {}
+        coder.append({
+            "name": w.get("name"), "owner": w.get("owner_name"),
+            "status": lb.get("status"), "template": w.get("template_name"),
+            "outdated": bool(w.get("outdated")), "last_used_at": w.get("last_used_at"),
+            "deadline": lb.get("deadline"), "autostart": w.get("autostart_schedule"),
+        })
+
+collector = [{
+    "collected_at": now.isoformat(), "host": os.uname().nodename,
+    "herdr_ok": ws_res is not None and ag_res is not None,
+    "review_generated_at": review_meta.get("generated_at"),
+    "review_login": review_meta.get("login"), "error_count": len(errors),
+}]
+try:
+    _rs = json.load(open(os.path.join(OUT, "runner-state.json")))
+except Exception:
+    _rs = {}
+collector[0]["runner_heartbeat_at"] = _rs.get("heartbeat_at")
+collector[0]["runner_pid"] = _rs.get("pid")
+collector[0]["runner_started_at"] = _rs.get("started_at")
+
+
+def _jst_hm(v):
+    try:
+        import datetime as _d
+        return _d.datetime.fromisoformat(v).astimezone(_d.timezone(_d.timedelta(hours=9))).strftime("%H:%M")
+    except Exception:
+        return "-"
+
+
+def _job_text(name, j):
+    if j.get("running"):
+        st = "実行中"
+    elif j.get("last_exit") in (None, 0):
+        st = "成功" if j.get("last_end") else "未実行"
+    else:
+        st = "失敗"
+    t = f"{name} {st}"
+    if j.get("last_end"):
+        t += f" {_jst_hm(j['last_end'])}"
+    if j.get("failures"):
+        t += f"（失敗累計 {j['failures']}）"
+    return t
+
+
+collector[0]["runner_jobs"] = " ／ ".join(_job_text(n, j) for n, j in (_rs.get("jobs") or {}).items()) or None
+
+def meta(*pairs):
+    return [{"label": k, "value": v, "type": "code"} if k == "コマンド" else {"label": k, "value": v} for k, v in pairs]
+
+bundle = {
+    "agents": {"rows": agents, "meta": meta(("取得元", "herdr agent list / herdr workspace list"), ("取得時刻", now.isoformat()))},
+    "workspaces": {"rows": workspaces, "meta": meta(("取得元", "herdr workspace list + 各チェックアウトの git status / log"), ("取得時刻", now.isoformat()))},
+    "reviews": {"rows": reviews, "meta": meta(("取得元", "~/.pr-reviews/state/summary.json（pr-review-watch）"), ("summary 生成時刻", review_meta.get("generated_at") or "不明"))},
+    "collector": {"rows": collector, "meta": meta(("取得元", "~/.dev-orchestrator/bin/collect-status"))},
+    "errors": {"rows": errors, "meta": meta(("取得元", "collect-status が記録した取得失敗"))},
+}
+for name, obj in bundle.items():
+    json.dump(obj, open(os.path.join(OUT, name + ".json"), "w"), ensure_ascii=False, indent=None)
+json.dump(bundle, open(os.path.join(OUT, "bundle.json"), "w"), ensure_ascii=False)
+print(json.dumps({"agents": len(agents), "workspaces": len(workspaces), "reviews": len(reviews), "errors": errors}, ensure_ascii=False))
+
+# ランナーが止まっていれば起動し直す（二重起動はしない。ランナー自身が呼ぶ場合は「動作中」と返るだけ）。
+# 毎時の更新タスクがこのスクリプトを実行するので、ワークスペースが起動し直された後の復旧もここで行う。
+try:
+    import subprocess as _sp
+    _sp.run([os.path.expanduser("~/.dev-orchestrator/bin/ensure-runner")], stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, timeout=30)
+except Exception:
+    pass

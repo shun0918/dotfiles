@@ -1,0 +1,23 @@
+{"type":"object","properties":{
+ "summary":{"type":"string"},
+ "recommendation":{"type":"string","enum":["approve","comment","request_changes"]},
+ "recommendation_reason":{"type":"string"},
+ "perspectives_run":{"type":"array","items":{"type":"string"}},
+ "findings":{"type":"array","items":{"type":"object","properties":{
+   "severity":{"type":"string","enum":["must","should","nit","question"]},
+   "perspective":{"type":"string"},
+   "file":{"type":"string"},
+   "line":{"type":"integer"},
+   "title":{"type":"string"},
+   "detail":{"type":"string"},
+   "scenario":{"type":"string"},
+   "verdict":{"type":"string","enum":["confirmed","plausible"]},
+   "verify_note":{"type":"string"},
+   "sources":{"type":"array","items":{"type":"string"}},
+   "already_raised":{"type":"boolean"},
+   "comment_draft":{"type":"string"}},
+  "required":["severity","perspective","file","line","title","detail","verdict","verify_note","comment_draft"]}},
+ "rejected":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"reason":{"type":"string"}},"required":["title","reason"]}},
+ "resolved_since_last":{"type":"array","items":{"type":"string"}},
+ "notes":{"type":"string"}},
+ "required":["summary","recommendation","recommendation_reason","findings","rejected"]}

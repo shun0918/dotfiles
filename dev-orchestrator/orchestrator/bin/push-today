@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""push-today: 「今日やること」の Claude Docs を、Slack・Notion・カレンダー・エージェント・PR レビューから書き直す。
+読み取り専用のツールと、Claude Docs だけを許可して claude -p を1回走らせる。GitHub・Slack・Notion には書かない。
+  push-today          実行（窓: 平日の稼働時間内。ランナーが呼ぶ）
+  push-today --dry    プロンプトだけ表示
+"""
+import json, subprocess, sys
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+HOME = Path.home()
+BASE = HOME / ".dev-orchestrator"
+sys.path.insert(0, str(BASE / "lib"))
+import orch_local
+DOC_ID, DOC_URL = orch_local.doc("today")
+JST = timezone(timedelta(hours=9))
+ALLOWED = ",".join([
+    "mcp__claude_ai_Claude_Docs",
+    "mcp__claude_ai_Slack__slack_search_public_and_private", "mcp__claude_ai_Slack__slack_search_public",
+    "mcp__claude_ai_Slack__slack_read_thread", "mcp__claude_ai_Slack__slack_read_channel",
+    "mcp__claude_ai_Slack__slack_get_reactions", "mcp__claude_ai_Slack__slack_read_user_profile",
+    "mcp__claude_ai_Notion__notion-search", "mcp__claude_ai_Notion__notion-fetch",
+    "mcp__claude_ai_Notion__notion-query-data-sources", "mcp__claude_ai_Notion__notion-query-multiple-data-sources",
+    "mcp__claude_ai_Notion__notion-calendar-list-events", "mcp__claude_ai_Notion__notion-calendar-list-calendars",
+])
+
+AGENT_PY = r'''
+import json,subprocess
+try:
+    d=json.loads(subprocess.run(["herdr","agent","list"],capture_output=True,text=True,timeout=20).stdout)["result"]["agents"]
+except Exception as e:
+    print(json.dumps({"error":str(e)[:200]},ensure_ascii=False)); raise SystemExit
+out=[]
+for a in d:
+    cwd=a.get("cwd","").replace("/home/coder/.herdr/worktrees/","wt:").replace("/home/coder/","~/")
+    item={"pane":a["pane_id"],"status":a.get("agent_status"),"title":a.get("terminal_title_stripped",""),"cwd":cwd}
+    if a.get("agent_status") in ("blocked","idle","done"):
+        try:
+            t=subprocess.run(["herdr","agent","read",a["pane_id"],"--lines","15","--source","recent"],capture_output=True,text=True,timeout=10).stdout
+            item["tail"]=t[-1200:]
+        except Exception: pass
+    out.append(item)
+print(json.dumps(out,ensure_ascii=False))
+'''
+
+def sh(cmd, timeout=60):
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    return (r.stdout or "").strip() or json.dumps({"error": (r.stderr or "no output")[:200]}, ensure_ascii=False)
+
+def main():
+    now = datetime.now(JST)
+    if now.weekday() >= 5:
+        return
+    agents = sh(["python3", "-c", AGENT_PY])
+    review = sh([str(HOME / ".local/bin/pr-review-watch"), "--brief"])
+    prompt = (BASE / "prompts" / "today.md").read_text()
+    prompt = orch_local.fill(prompt, {"NOW": now.strftime("%Y-%m-%d %H:%M"), "DOC_URL": DOC_URL, "DOC_ID": DOC_ID,
+                                      "COLLECTED_AT": now.strftime("%H:%M"), "AGENTS_JSON": agents, "REVIEW_JSON": review})
+    if "--dry" in sys.argv:
+        print(prompt); return
+    r = subprocess.run(["claude", "-p", prompt, "--allowedTools", ALLOWED, "--max-turns", "60", "--output-format", "json"],
+                       cwd=str(HOME), capture_output=True, text=True, timeout=840)
+    info = {"at": now.isoformat(timespec="seconds"), "rc": r.returncode}
+    try:
+        j = json.loads(r.stdout)
+        info.update({"is_error": j.get("is_error"), "turns": j.get("num_turns"), "cost_usd": j.get("total_cost_usd"),
+                     "denied": [d.get("tool_name") for d in (j.get("permission_denials") or [])],
+                     "result": (j.get("result") or "")[:600]})
+    except Exception:
+        info["raw"] = (r.stdout or r.stderr)[-400:]
+    (BASE / "state" / "today-run.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
+    print(json.dumps({k: info.get(k) for k in ("rc", "is_error", "turns", "cost_usd", "denied")}, ensure_ascii=False))
+    sys.exit(0 if r.returncode == 0 and not info.get("is_error") else 1)
+
+main()

@@ -1,0 +1,36 @@
+#!/bin/bash
+# ランナーが動いていなければ起動する（何度実行しても安全）。
+# herdr が動いていれば「司令塔ランナー」ワークスペースのペインで、なければ nohup で起動する。
+# 止めるには: kill $(pgrep -f '^python3 .*bin/runner')
+set -u
+BASE="$HOME/.dev-orchestrator"
+LABEL="司令塔ランナー"
+mkdir -p "$BASE/log" "$BASE/state"
+exec 9>"$BASE/runner.lock"
+if ! flock -n 9; then echo "runner already running"; exit 0; fi
+flock -u 9; exec 9>&-
+
+if command -v herdr >/dev/null 2>&1 && herdr status server 2>/dev/null | grep -q 'status: running'; then
+  # 前回の空のワークスペースが残っていれば閉じる（ランナーが居ない＝中身は死んでいる）
+  for id in $(herdr workspace list 2>/dev/null | python3 -c "
+import json,sys
+d=json.load(sys.stdin)['result']['workspaces']
+print(' '.join(w['workspace_id'] for w in d if w['label']=='$LABEL'))"); do
+    herdr workspace close "$id" >/dev/null 2>&1
+  done
+  out=$(herdr workspace create --cwd "$BASE" --label "$LABEL" 2>&1)
+  pane=$(echo "$out" | python3 -c "
+import json,sys
+r=json.load(sys.stdin)['result']
+print(r.get('root_pane',{}).get('pane_id') or r.get('pane',{}).get('pane_id') or '')" 2>/dev/null)
+  if [ -n "$pane" ]; then
+    herdr pane run "$pane" "python3 $BASE/bin/runner" >/dev/null 2>&1
+    sleep 3
+    echo "runner started in herdr pane $pane"
+    exit 0
+  fi
+  echo "herdr pane lookup failed, falling back to nohup: $out" >&2
+fi
+nohup setsid python3 "$BASE/bin/runner" >>"$BASE/log/runner.out" 2>&1 < /dev/null &
+sleep 2
+echo "runner started (nohup)"

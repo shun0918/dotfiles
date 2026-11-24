@@ -1,0 +1,57 @@
+{
+  "tick_sec": 30,
+  "window": {
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "start": "07:00",
+    "end": "21:00"
+  },
+  "jobs": [
+    {
+      "name": "collect-status",
+      "cmd": [
+        "~/.dev-orchestrator/bin/collect-status"
+      ],
+      "every_sec": 300,
+      "timeout_sec": 120
+    },
+    {
+      "name": "pr-review-watch",
+      "cmd": [
+        "~/.local/bin/pr-review-watch",
+        "--no-post"
+      ],
+      "every_sec": 900,
+      "timeout_sec": 900
+    },
+    {
+      "name": "push-inbox",
+      "cmd": [
+        "~/.pr-reviews/bin/push-inbox"
+      ],
+      "every_sec": 300,
+      "timeout_sec": 290
+    },
+    {
+      "name": "push-status",
+      "cmd": [
+        "~/.dev-orchestrator/bin/push-status"
+      ],
+      "every_sec": 300,
+      "timeout_sec": 290
+    },
+    {
+      "name": "push-today",
+      "cmd": [
+        "~/.dev-orchestrator/bin/push-today"
+      ],
+      "every_sec": 3600,
+      "timeout_sec": 840
+    }
+  ]
+}
