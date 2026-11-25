@@ -209,7 +209,7 @@ def cmd_approve(a):
               f"終わったら {docs}/RESULT.md に結果を書いてください。")
     allowed = [f"Write({docs}/RESULT.md)", f"Edit({docs}/RESULT.md)", "Bash(git add:*)", "Bash(git commit:*)",
                "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)"]
-    body = (f"cd {q(d['worktree'])}\nexec {CLAUDE} {q(prompt)} --permission-mode acceptEdits \\\n"
+    body = (f"cd {q(d['worktree'])}\nexec {CLAUDE} {q(prompt)} --permission-mode auto \\\n"
             f"  --append-system-prompt \"$(cat {q(str(ROLES / 'impl.md'))})\" \\\n"
             f"  --allowedTools {' '.join(q(x) for x in allowed)} \\\n"
             f"  --disallowedTools {' '.join(q(x) for x in DENY_COMMON if 'feature approve' not in x)}")
