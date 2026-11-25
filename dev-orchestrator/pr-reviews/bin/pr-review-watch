@@ -497,7 +497,7 @@ def build_ai_comment(pr, latest, posted_titles):
     if posted_titles and not fs:
         return None, set()
     cnt = {s: sum(1 for f in fs if f.get("severity") == s) for s in ("must", "should", "question", "nit")}
-    L = ["🤖 **AI による自動レビューです**（本人は別途レビューします）", ""]
+    L = ["🤖 **AI review**（AI による自動レビューです）", ""]
     if (out.get("summary") or "").strip() and not posted_titles:
         L += [out["summary"].strip(), ""]
     if fs:
