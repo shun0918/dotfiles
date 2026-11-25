@@ -15,7 +15,6 @@ STATE_DIR = HOME / ".dev-orchestrator" / "state"
 sys.path.insert(0, str(HOME / ".dev-orchestrator" / "lib"))
 import orch_local
 DOC_ID, DOC_URL = orch_local.doc("status")
-INBOX_URL = orch_local.doc("inbox")[1]
 PUSHED = STATE_DIR / "docs-pushed-status.json"
 JST = timezone(timedelta(hours=9))
 STATUS_JA = {"working": "作業中", "blocked": "入力待ち", "idle": "待機（次の指示待ち）", "done": "完了", "unknown": "不明"}
@@ -58,7 +57,7 @@ def build():
         L.append(f"| {cell(w.get('label'))} | {cell(w.get('branch'))} | {cell(w.get('dirty_files'))} | {cell(w.get('unpushed_commits'))} | {cell(w.get('last_commit_subject'))} |")
     L.append("")
     L.append("## PRレビュー")
-    L.append(f"レビュー依頼 {cnt.get('requests', 0)} 件（Must {cnt.get('requests_must', 0)} 件）／自分のPRへの指摘 {cnt.get('my_prs_with_comments', 0)} 件／approve済み {cnt.get('approved', 0)} 件。詳細は [PRレビュー受信箱]({INBOX_URL}) を見てください。")
+    L.append(f"レビュー依頼 {cnt.get('requests', 0)} 件（Must {cnt.get('requests_must', 0)} 件）／自分のPRへの指摘 {cnt.get('my_prs_with_comments', 0)} 件／approve済み {cnt.get('approved', 0)} 件。詳細は GitHub の各 PR を見てください。")
     L.append("")
     L.append("## 仕組みの健康状態")
     jobs = (rs.get("jobs") or {})

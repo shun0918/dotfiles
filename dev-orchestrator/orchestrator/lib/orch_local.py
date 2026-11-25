@@ -15,7 +15,7 @@ def local():
 
 
 def doc(name):
-    """name は today / status / inbox。戻り値は (doc_id, doc_url)。"""
+    """name は today / status。戻り値は (doc_id, doc_url)。"""
     d = local().get("docs", {}).get(name)
     if not d or not d.get("id") or not d.get("url"):
         sys.exit(f"{LOCAL_JSON} の docs.{name} (id, url) がありません。setup-orchestrator skill で作ってください。")
@@ -27,7 +27,7 @@ def fill(text, extra=None):
     cfg = local()
     vals = dict(cfg.get("vars", {}))
     vals.update(extra or {})
-    for k in ("today", "status", "inbox"):
+    for k in ("today", "status"):
         d = cfg.get("docs", {}).get(k, {})
         vals.setdefault(f"{k.upper()}_URL", d.get("url", ""))
     ctx = LOCAL_DIR / "today-context.md"

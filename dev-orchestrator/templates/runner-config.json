@@ -30,14 +30,6 @@
       "timeout_sec": 900
     },
     {
-      "name": "push-inbox",
-      "cmd": [
-        "~/.pr-reviews/bin/push-inbox"
-      ],
-      "every_sec": 300,
-      "timeout_sec": 290
-    },
-    {
       "name": "push-status",
       "cmd": [
         "~/.dev-orchestrator/bin/push-status"

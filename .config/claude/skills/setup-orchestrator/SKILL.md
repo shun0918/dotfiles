@@ -1,6 +1,6 @@
 ---
 name: setup-orchestrator
-description: 秘書・司令塔（今日やること、PRレビュー受信箱、司令塔ステータス、feature による実装委任）を、この環境で使えるようにセットアップする。「秘書をセットアップして」と頼まれたときに使う
+description: 秘書・司令塔（今日やること、司令塔ステータス、feature による実装委任）を、この環境で使えるようにセットアップする。「秘書をセットアップして」と頼まれたときに使う
 disable-model-invocation: true
 ---
 
@@ -29,7 +29,7 @@ dotfiles の `dev-orchestrator/` にあるコードは汎用で、会社名・�
    - カレンダー: どのツールで、どの calendarId を対象にするか
    - メモページ・タスクDB（あれば）: ページ ID、DB の名前・条件
    - レビュー: 対象の GitHub org、リポジトリを置いている場所、除外する作者（bot など。既定の dependabot / renovate に追加する分）、稼働する曜日・時間
-   - 3つの Docs（今日やること・司令塔ステータス・PRレビュー受信箱）を新しく作ってよいか
+   - 2つの Docs（今日やること・司令塔ステータス）を新しく作ってよいか
 
 3. **設定の生成**（雛形は `~/.config/coderv2/dotfiles/dev-orchestrator/templates/`）
    - `~/.config/dev-orchestrator/today-context.md` を `today-context.template.md` から作る。答えを埋め、聞いていない項目の行は消す。
@@ -40,14 +40,13 @@ dotfiles の `dev-orchestrator/` にあるコードは汎用で、会社名・�
    - 置き換え漏れの確認: `grep -n '<[^>]*>' ~/.config/dev-orchestrator/local.json ~/.config/dev-orchestrator/today-context.md ~/.pr-reviews/config.json` を実行する。docs の `<DOC_ID>` と `<DOC_URL>` は次の手順で埋めるので、それ以外が残っていたら埋めるか消す（日本語の穴 `<レビュー対象の GitHub org>` などもこれで見つかる）。
 
 4. **Docs の作成**
-   - Claude Docs のツールで、空の doc を3つ作る（タイトルは「今日やること」「司令塔ステータス」「PRレビュー受信箱」）。
+   - Claude Docs のツールで、空の doc を2つ作る（タイトルは「今日やること」「司令塔ステータス」）。
    - それぞれの id と URL を `local.json` の `docs` に書く。書いたあとに、手順3の置き換え漏れの確認をもう一度実行し、0 件にする。
    - Docs のツールが使えない（コネクタ未接続・権限なし・ヘッドレスなど）ときは、作らずに人間に頼んで止まる。ダミーの id を入れて進めない。
 
 5. **動作確認**（書き込みをしない、dry の確認）
    - `~/.dev-orchestrator/bin/push-today --dry`（平日はプロンプトが表示される。土日は何も出さずに終わる。それが正常）
    - `~/.dev-orchestrator/bin/push-status --dry`
-   - `~/.pr-reviews/bin/push-inbox --dry`
    - `~/.local/bin/pr-review-watch --brief`
    - `~/.dev-orchestrator/bin/feature list`
    - どれかが失敗したら、原因を人間に伝えて止まる。
@@ -57,6 +56,6 @@ dotfiles の `dev-orchestrator/` にあるコードは汎用で、会社名・�
    - 初回の push が成功したか、`~/.dev-orchestrator/state/runner-state.json` で確かめる。
 
 7. **最後に人間へ伝えること**
-   - 作ったもの（設定ファイルの場所と、3つの Docs の URL）。
+   - 作ったもの（設定ファイルの場所と、2つの Docs の URL）。
    - 人間が行うこと（claude のログイン期限、gh の認証、Slack・Notion 等のコネクタ接続）。
    - 実装の委任は `feature start <名前> --repo <パス> --task "..."` で始まり、計画の承認は人間が `feature approve <名前>` で行うこと。

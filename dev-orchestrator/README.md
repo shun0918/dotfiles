@@ -17,7 +17,7 @@ AI 秘書・司令塔・PR レビュー・実装委任（`feature`）の仕組�
 ## 新しい環境で使い始める
 
 1. dotfiles を入れる（Coder の dotfiles 機能、または `install.sh`）。
-2. Claude に「秘書をセットアップして」と頼む（`setup-orchestrator` skill）。聞かれたことに答えると、設定と 3 つの Docs が作られる。
+2. Claude に「秘書をセットアップして」と頼む（`setup-orchestrator` skill）。聞かれたことに答えると、設定と 2 つの Docs が作られる。
 
 ## 固有の値を誤ってコミットしない
 
