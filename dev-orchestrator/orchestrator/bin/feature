@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """feature — 1つの機能開発を、herdr の1ワークスペース（リード＋ワーカーのタブ）で回す。
 
-  feature start <name> --repo <path> [--task "..." | --task-file f] [--base <ref>] [--no-worktree]
+  feature start <name> --repo <path> [--task "..." | --task-file f] [--base <ref>] [--no-worktree] [--worktree-dir <dir>]
       worktree と herdr ワークスペース「feat: <name>」を作り、リード(lead)タブで計画だけ始める。
   feature approve <name>
       人間が計画を承認する。APPROVED を作り、実装(impl)タブを作って実装ワーカーを起動する。
@@ -10,6 +10,11 @@
   feature list            機能の一覧と状態
   feature show <name>     1つの機能の詳細（記録した全エージェント）
   feature close <name>    herdr ワークスペースだけ閉じる（worktree と記録は残す）
+
+worktree の置き場所: --worktree-dir > <repo>/.claude/worktrees（あれば）> ~/.dev-orchestrator/worktrees。
+repo ごとに「worktree はここに作る」「テスト用の環境は worktree ごとに用意する」という決まりがある場合に備え、
+repo 側の規約の場所（<repo>/.claude/worktrees）を優先する。repo に .worktreeinclude があれば、そこに書かれた
+git 管理外のファイル（.env など）を worktree にコピーする。
 
 自動起動してよいのは計画(lead)とレビュー(review)＝読み取りだけ。実装は approve されるまで始まらない。
 approve は人間だけが叩く（lead には禁止してある）。AI は GitHub に何も投稿しない・push しない。
@@ -98,6 +103,43 @@ def q(s):
     return shlex.quote(s)
 
 
+def worktree_root(repo, override):
+    """worktree を作る親ディレクトリ。--worktree-dir > <repo>/.claude/worktrees（あれば）> 既定。"""
+    if override:
+        return Path(override).expanduser().resolve()
+    conv = repo / ".claude" / "worktrees"
+    return conv if conv.is_dir() else WORKTREES
+
+
+def copy_worktreeinclude(repo, wt):
+    """repo の .worktreeinclude（1行1パス、# はコメント）に書かれた git 管理外のファイルを worktree にコピーする。
+    既にあるものは上書きしない。repo の外を指すパスは無視する。"""
+    inc = repo / ".worktreeinclude"
+    if not inc.exists():
+        return
+    copied = []
+    for line in inc.read_text().splitlines():
+        rel = line.strip()
+        if not rel or rel.startswith("#"):
+            continue
+        src = (repo / rel).resolve()
+        try:
+            src.relative_to(repo)
+        except ValueError:
+            continue
+        dst = wt / rel
+        if not src.exists() or dst.exists():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+        copied.append(rel)
+    if copied:
+        print(f".worktreeinclude から {len(copied)} 件を worktree にコピーしました。")
+
+
 def cmd_start(a):
     name = a.name
     if fdir(name).exists():
@@ -115,9 +157,11 @@ def cmd_start(a):
     if a.no_worktree:
         wt = repo
     else:
-        wt = WORKTREES / name
-        WORKTREES.mkdir(parents=True, exist_ok=True)
+        root = worktree_root(repo, a.worktree_dir)
+        root.mkdir(parents=True, exist_ok=True)
+        wt = root / name
         git(repo, "worktree", "add", "-b", branch, str(wt), base)
+        copy_worktreeinclude(repo, wt)
     docs = wt / ".feature"   # 依頼・計画・結果の置き場。worktree の中に置く（別ディレクトリだと claude の信頼確認が増えるため）
     docs.mkdir(exist_ok=True)
     excl = Path(git(wt, "rev-parse", "--git-common-dir")) 
@@ -228,6 +272,7 @@ def main():
     sp = ap.add_subparsers(dest="c", required=True)
     s = sp.add_parser("start"); s.add_argument("name"); s.add_argument("--repo", required=True)
     s.add_argument("--task"); s.add_argument("--task-file"); s.add_argument("--base"); s.add_argument("--no-worktree", action="store_true")
+    s.add_argument("--worktree-dir")
     s.set_defaults(f=cmd_start)
     for n, f in (("approve", cmd_approve), ("review", cmd_review), ("show", cmd_show), ("close", cmd_close)):
         x = sp.add_parser(n); x.add_argument("name"); x.set_defaults(f=f)
