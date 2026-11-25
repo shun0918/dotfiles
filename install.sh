@@ -123,6 +123,9 @@ if [ "$LINKS_ONLY" != true ] && [ -f "$HOME/.config/dev-orchestrator/local.json"
     "$HOME/.dev-orchestrator/bin/ensure-runner" || true
 fi
 
+# ワークスペースの再起動後、最初のシェルでランナーを自動で復帰させる（~/.bashrc の先頭に1行足す。何度実行しても安全）
+bash "$DOTFILES_DIR/dev-orchestrator/scripts/install-shell-hook.sh" || true
+
 # OS specific setup
 case "$(uname -s)" in
     Darwin) source "$DOTFILES_DIR/os/macos.sh" ;;
