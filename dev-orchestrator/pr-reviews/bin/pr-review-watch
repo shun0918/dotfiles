@@ -174,6 +174,59 @@ def review_states(pr):
         st[a] = (r["state"], r.get("submittedAt") or "")
     return st
 
+def needs_my_review(my, last_commit):
+    """自分のレビューがまだ要るか。承認済みなら要らない。コメントのみ・変更依頼のときは、そのあとに新しいコミットが入っていれば要る。"""
+    if not my:
+        return True
+    return my[0] != "APPROVED" and (my[1] or "") < (last_commit or "")
+
+DONE_Q = ("query($owner: String!, $name: String!, $num: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $num) {"
+          " state merged mergedAt closedAt commits(last: 1) { nodes { commit { committedDate } } }"
+          " latestReviews(first: 20) { nodes { author { login } state submittedAt body } } } } }")
+DONE_KEEP_SEC = 36 * 3600   # 「完了」として残す時間
+
+def dropped_reason(token, login, p):
+    """自分のレビュー待ちだった PR が一覧から消えた理由を GitHub で調べる。(理由, 時刻)。まだ要レビューのままなら (None, None)"""
+    try:
+        owner, name = p["repo"].split("/")
+        pr = gql(token, DONE_Q, {"owner": owner, "name": name, "num": int(p["number"])})["repository"]["pullRequest"]
+    except Exception:
+        return None, None
+    if pr.get("merged"):
+        return "マージされた", pr.get("mergedAt")
+    if pr.get("state") == "CLOSED":
+        return "クローズされた", pr.get("closedAt")
+    my = review_states(pr).get(login)
+    if my and not needs_my_review(my, last_commit_at(pr)):
+        return "レビュー済み（%s）" % {"APPROVED": "承認", "COMMENTED": "コメント", "CHANGES_REQUESTED": "変更依頼"}.get(my[0], my[0]), my[1]
+    return None, None
+
+def track_done(token, login, prev, req_entries):
+    """前回は「自分のレビュー待ち」だった PR が、今回そうでなくなっていたら、理由つきで「完了」に残す（DONE_KEEP_SEC の間）。"""
+    path = BASE / "state" / "review-done.json"
+    now = time.time()
+    cur = {e["repo"] + "#" + str(e["number"]): e for e in req_entries}
+    done = [d for d in (rjson(path, []) or []) if now - d.get("at_epoch", 0) < DONE_KEEP_SEC
+            and not (d["key"] in cur and cur[d["key"]].get("needs_my_review"))]   # また要レビューになったものは外す
+    have = {d["key"] for d in done}
+    for p in prev.get("requests") or []:
+        key = p["repo"] + "#" + str(p["number"])
+        if key in have or not p.get("needs_my_review", True):
+            continue
+        c = cur.get(key)
+        if c is not None:
+            if c.get("needs_my_review"):
+                continue
+            reason, at = "レビュー済み（承認）", (c.get("my_review") or {}).get("at")
+        else:
+            reason, at = dropped_reason(token, login, p)
+            if reason is None:
+                continue
+        done.append({"key": key, "repo": p["repo"], "number": p["number"], "title": p.get("title", ""), "url": p.get("url", ""),
+                     "reason": reason, "at": at or now_iso(), "at_epoch": now})
+    wjson(path, done)
+    return done
+
 def is_approved(pr):
     if pr["isDraft"]:
         return False
@@ -722,6 +775,10 @@ def cmd_watch(args):
             decide(cfg, f'req__{rkey(pr)}__{pr["headRefOid"][:12]}', bool(latest and latest.get("sha") == pr["headRefOid"]),
                    e, to_launch, make_spec("req", pr, login, prev=latest))
         attach_req_result(e, latest, pr)
+        mr = review_states(pr).get(login)
+        e["my_review"] = {"state": mr[0], "at": mr[1]} if mr else None
+        e["last_commit_at"] = last_commit_at(pr)
+        e["needs_my_review"] = needs_my_review(mr, last_commit_at(pr))
         if not reason and latest and latest.get("sha") == pr["headRefOid"]:
             if do_post:
                 try:
@@ -764,6 +821,10 @@ def cmd_watch(args):
         for job_id, spec, e in to_launch[:slots]:
             launch(job_id, spec)
             e["status"], e["status_note"] = "running", "今回開始"
+    try:
+        track_done(token, login, rjson(BASE / "state" / "summary.json", {}) or {}, req_entries)
+    except Exception as ex:
+        errors.append("完了の記録: " + cut(str(ex), 200))
     summary = {"generated_at": now_iso(), "login": login, "review_orgs": cfg["review_orgs"],
                "counts": {"requests": len(req_entries), "requests_must": sum((e.get("counts") or {}).get("must", 0) for e in req_entries if not e.get("stale")),
                           "my_prs_with_comments": len(mine_entries),
@@ -839,7 +900,11 @@ def cmd_brief():
     out = {"generated_at": s["generated_at"],
            "requests": [{"repo": e["repo"], "number": e["number"], "title": cut(e["title"], 60), "url": e["url"], "author": e["author"],
                          "status": e.get("status"), "must": (e.get("counts") or {}).get("must", 0), "should": (e.get("counts") or {}).get("should", 0),
-                         "recommendation": e.get("recommendation", "")} for e in s["requests"]],
+                         "recommendation": e.get("recommendation", ""), "ai_review_url": e.get("ai_review_url", ""),
+                         "created_at": e.get("created_at", ""), "my_review": e.get("my_review")}
+                        for e in s["requests"] if e.get("needs_my_review", True)],
+           "done_recent": [{k: d.get(k) for k in ("repo", "number", "title", "url", "reason", "at")}
+                           for d in (rjson(BASE / "state" / "review-done.json", []) or []) if time.time() - d.get("at_epoch", 0) < DONE_KEEP_SEC],
            "my_prs": [{"repo": e["repo"], "number": e["number"], "title": cut(e["title"], 60), "url": e["url"],
                        "pending": len(e.get("comments", [])), "to_fix": (e.get("counts") or {}).get("valid", 0) + (e.get("counts") or {}).get("partial", 0),
                        "to_reply": sum((e.get("counts") or {}).get(k, 0) for k in ("invalid", "preference", "already_fixed", "unclear"))} for e in s["my_prs"]],

@@ -71,8 +71,11 @@ for w in (ws_res or {}).get("workspaces", []):
         "unpushed_commits": ahead, "last_commit_at": last_at, "last_commit_subject": last_subj,
     })
 
+SYSTEM_WORKSPACES = {"司令塔ランナー", "PRレビュー"}   # ランナーとレビュー用の作業場所。人間が見るエージェントではない
 for a in (ag_res or {}).get("agents", []):
     wid = a.get("workspace_id")
+    if label_by_id.get(wid) in SYSTEM_WORKSPACES:
+        continue
     agents.append({
         "pane_id": a.get("pane_id"), "workspace_id": wid,
         "workspace": label_by_id.get(wid), "branch": branch_by_id.get(wid),

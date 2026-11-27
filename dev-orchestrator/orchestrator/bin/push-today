@@ -30,8 +30,14 @@ try:
     d=json.loads(subprocess.run(["herdr","agent","list"],capture_output=True,text=True,timeout=20).stdout)["result"]["agents"]
 except Exception as e:
     print(json.dumps({"error":str(e)[:200]},ensure_ascii=False)); raise SystemExit
+try:
+    wl={w["workspace_id"]:w.get("label","") for w in json.loads(subprocess.run(["herdr","workspace","list"],capture_output=True,text=True,timeout=20).stdout)["result"]["workspaces"]}
+except Exception:
+    wl={}
 out=[]
 for a in d:
+    if wl.get(a.get("workspace_id")) in ("司令塔ランナー","PRレビュー"):
+        continue   # ランナーとレビュー用の作業場所は、人間が見るエージェントではない
     cwd=a.get("cwd","").replace("/home/coder/.herdr/worktrees/","wt:").replace("/home/coder/","~/")
     item={"pane":a["pane_id"],"status":a.get("agent_status"),"title":a.get("terminal_title_stripped",""),"cwd":cwd}
     if a.get("agent_status") in ("blocked","idle","done"):
