@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""PRレビューの見張り画面。
+
+herdr の「PRレビュー」ワークスペースに常駐させて、いまの状況を一覧で見せる。読み取り専用で、
+~/.pr-reviews/ と常駐ランナーの状態ファイルを読むだけ（GitHub には触れない）。
+  pr-review-monitor          10 秒ごとに画面を更新し続ける
+  pr-review-monitor --once   1 回だけ表示して終わる（動作確認用）
+"""
+import argparse
+import datetime as dt
+import json
+import os
+import shutil
+import sys
+import time
+from pathlib import Path
+
+BASE = Path.home() / ".pr-reviews"
+RUNNER_STATE = Path.home() / ".dev-orchestrator" / "state" / "runner-state.json"
+RUNNER_CONFIG = Path.home() / ".dev-orchestrator" / "runner-config.json"
+STATUS_JA = {"done": "完了", "running": "レビュー中", "pending": "待機", "queued": "待機", "failed": "失敗", "skipped": "対象外"}
+
+
+def rjson(p, default=None):
+    try:
+        return json.loads(Path(p).read_text())
+    except Exception:
+        return default
+
+
+def ago(t):
+    s = int((dt.datetime.now(dt.timezone.utc) - t).total_seconds())
+    if s < 90:
+        return f"{max(s, 0)} 秒前"
+    if s < 5400:
+        return f"{s // 60} 分前"
+    return f"{s // 3600} 時間前"
+
+
+def parse(ts):
+    try:
+        t = dt.datetime.fromisoformat(ts)
+        return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+    except Exception:
+        return None
+
+
+def watch_interval():
+    for j in (rjson(RUNNER_CONFIG, {}) or {}).get("jobs", []):
+        if j.get("name") == "pr-review-watch":
+            return int(j.get("every_sec") or j.get("interval") or 900)
+    return 900
+
+
+def running_jobs():
+    out = []
+    jobs = sorted((BASE / "jobs").glob("*/status.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:30]
+    for p in jobs:
+        st = rjson(p, {}) or {}
+        pid = st.get("pid")
+        if st.get("state") == "running" and pid and Path(f"/proc/{pid}").exists():
+            spec = rjson(p.parent / "spec.json", {}) or {}
+            out.append((spec.get("repo", "?").split("/")[-1], spec.get("number", "?"), spec.get("kind", "?"), st.get("started_at", "")))
+    return out
+
+
+def render(width):
+    L = []
+    now = dt.datetime.now().astimezone()
+    L.append(f"PRレビュー 見張り    {now:%Y-%m-%d %H:%M:%S}（10 秒ごとに更新）")
+    L.append("")
+    s = rjson(BASE / "state" / "summary.json", {}) or {}
+    rs = (rjson(RUNNER_STATE, {}) or {}).get("jobs", {}).get("pr-review-watch", {}) or {}
+    gen = parse(s.get("generated_at", ""))
+    if rs.get("running"):
+        L.append("確認: いま実行中")
+    elif gen:
+        nxt = ""
+        if rs.get("last_start_epoch"):
+            left = int(rs["last_start_epoch"] + watch_interval() - time.time())
+            nxt = f"、次は約 {max(left, 0) // 60 + 1} 分後" if left > 0 else "、まもなく次の確認"
+        L.append(f"最終確認: {gen:%H:%M:%S}（{ago(gen)}）{nxt}")
+    else:
+        L.append("最終確認: まだ記録がありません")
+    if rs.get("failures"):
+        L.append(f"ランナーの失敗回数: {rs['failures']}")
+    for e in (s.get("errors") or [])[:3]:
+        L.append(f"! エラー: {str(e)[:width - 8]}")
+    L.append("")
+
+    run = running_jobs()
+    L.append(f"レビュー実行中: {len(run)} 件")
+    for name, num, kind, started in run:
+        t = parse(started)
+        L.append(f"  ▶ {name}#{num}（{kind}）  開始 {ago(t) if t else started}")
+    L.append("")
+
+    reqs = s.get("requests") or []
+    L.append(f"自分宛てのレビュー依頼: {len(reqs)} 件")
+    for r in reqs:
+        label = STATUS_JA.get(r.get("status"), r.get("status") or "?")
+        if r.get("status") == "done" and r.get("stale"):
+            label = "完了（新しいコミットあり）"
+        head = f"  [{label}] {r.get('repo', '?').split('/')[-1]}#{r.get('number')}  {r.get('title', '')}"
+        L.append(head[:width])
+        extra = []
+        if r.get("recommendation"):
+            extra.append(f"判定: {r['recommendation']}")
+        if r.get("ai_review_url"):
+            extra.append(r["ai_review_url"])
+        if extra:
+            L.append("      " + "  ".join(extra))
+    L.append("")
+
+    c = s.get("counts") or {}
+    L.append(f"自分の PR: レビューコメントあり {c.get('my_prs_with_comments', 0)} 件（有効な指摘 {c.get('my_comments_valid', 0)} 件）、承認済み {c.get('approved', 0)} 件")
+    L.append("")
+
+    posted = rjson(BASE / "state" / "posted.json", {}) or {}
+    recent = sorted(posted.items(), key=lambda kv: kv[1].get("posted_at", ""), reverse=True)[:6]
+    L.append("最近の AI review 投稿:")
+    if not recent:
+        L.append("  （まだありません）")
+    for key, v in recent:
+        repo = key.split("__")
+        name = f"{repo[-2]}#{repo[-1]}" if len(repo) >= 3 else key
+        L.append(f"  {v.get('posted_at', '')[5:16].replace('T', ' ')}  {name}  {v.get('comment_url') or v.get('review_url') or ''}"[:width + 60])
+    L.append("")
+    L.append("※ 依頼の検知はランナーが 15 分ごとに行う。レビューが走る間は、このワークスペースに review: のタブが出る。")
+    return "\n".join(L)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--once", action="store_true")
+    a = ap.parse_args()
+    while True:
+        width = shutil.get_terminal_size((100, 30)).columns
+        try:
+            text = render(width)
+        except Exception as e:  # 見張り画面は止めない
+            text = f"表示でエラー: {e}"
+        sys.stdout.write(("" if a.once else "\033[H\033[2J") + text + "\n")
+        sys.stdout.flush()
+        if a.once:
+            return
+        time.sleep(10)
+
+
+if __name__ == "__main__":
+    main()

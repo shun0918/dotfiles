@@ -39,6 +39,25 @@ DEFAULT_CONFIG = {
 AI_MARK = "pr-review-watch:ai"
 
 # ---------- 小道具 ----------
+def say(msg):
+    """レビューのタブ（と run.log）に、進捗を 1 行出す。"""
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+class Ticker:
+    """長く待つ処理の間、一定間隔で「経過 N 秒」を出す（タブが止まって見えないように）。"""
+    def __init__(self, label, every=30):
+        self.label, self.every = label, every
+    def __enter__(self):
+        import threading
+        self.stop, self.t0 = threading.Event(), time.time()
+        threading.Thread(target=self._loop, daemon=True).start()
+        return self
+    def _loop(self):
+        while not self.stop.wait(self.every):
+            say(f"  … {self.label}（{int(time.time() - self.t0)} 秒経過）")
+    def __exit__(self, *exc):
+        self.stop.set()
+
 def now_iso():
     return datetime.now(JST).isoformat(timespec="seconds")
 
@@ -257,18 +276,51 @@ def _herdr(*args):
         raise RuntimeError((r.stderr or r.stdout or "herdr failed").strip()[:200])
     return json.loads(r.stdout or "{}")
 
-def herdr_tab_run(label, shell_cmd):
-    """herdr の「PRレビュー」ワークスペースに新しいタブを作り、その中で shell_cmd を走らせる（フォーカスは奪わない）。
-    shell_cmd の中の {TAB} は、作ったタブの ID に置き換わる。成功したら True。"""
+def review_ws():
+    """herdr の「PRレビュー」ワークスペースの ID を返す（無ければ作る）。"""
     wss = _herdr("workspace", "list")["result"]["workspaces"]
     ws = next((w["workspace_id"] for w in wss if w.get("label") == HERDR_REVIEW_WS_LABEL), None)
     if ws is None:
         c = _herdr("workspace", "create", "--label", HERDR_REVIEW_WS_LABEL, "--cwd", str(BASE), "--no-focus")
         ws = c["result"]["workspace"]["workspace_id"]   # 最初のタブは空のまま残す（ワークスペースを消さないため）
+    return ws
+
+def tab_label(spec):
+    return f"review: {spec['repo'].split('/')[-1]}#{spec['number']} ({spec['kind']})"
+
+KEEP_FINISHED_TABS = 4   # 終わったレビューのタブを、この数だけ残す（古いものから閉じる）
+
+def prune_finished_tabs(ws):
+    tabs = _herdr("tab", "list", "--workspace", ws)["result"].get("tabs", [])
+    done = [t for t in tabs if str(t.get("label", "")).startswith(("✓ ", "✗ "))]
+    for t in done[:-KEEP_FINISHED_TABS] if KEEP_FINISHED_TABS else done:
+        try:
+            _herdr("tab", "close", t["tab_id"])
+        except Exception:
+            pass
+
+def herdr_tab_run(label, shell_cmd):
+    """herdr の「PRレビュー」ワークスペースに新しいタブを作り、その中で shell_cmd を走らせる（フォーカスは奪わない）。
+    shell_cmd の中の {TAB} は、作ったタブの ID に置き換わる。成功したら True。"""
+    ws = review_ws()
+    prune_finished_tabs(ws)
     t = _herdr("tab", "create", "--workspace", ws, "--label", label, "--cwd", str(BASE), "--no-focus")
     pane, tab = t["result"]["root_pane"]["pane_id"], t["result"]["tab"]["tab_id"]
     _herdr("pane", "run", pane, shell_cmd.replace("{TAB}", tab))
     return True
+
+WATCH_TAB_LABEL = "watch: 見張り"
+
+def ensure_watch_tab():
+    """「PRレビュー」ワークスペースに、状況を一覧する見張り画面（pr-review-monitor）のタブを 1 つ置く。無ければ作る。"""
+    import shlex
+    ws = review_ws()
+    tabs = _herdr("tab", "list", "--workspace", ws)["result"].get("tabs", [])
+    if any(t.get("label") == WATCH_TAB_LABEL for t in tabs):
+        return
+    t = _herdr("tab", "create", "--workspace", ws, "--label", WATCH_TAB_LABEL, "--cwd", str(BASE), "--no-focus")
+    _herdr("pane", "run", t["result"]["root_pane"]["pane_id"],
+           f"{shlex.quote(sys.executable)} {shlex.quote(str(SELF.parent / 'pr-review-monitor'))}")
 
 def launch(job_id, spec):
     jd = job_dir(job_id)
@@ -279,9 +331,9 @@ def launch(job_id, spec):
     if load_config().get("run_in_herdr", False):
         try:
             import shlex
-            cmd = (f"{shlex.quote(sys.executable)} {shlex.quote(str(SELF))} --run-job {shlex.quote(job_id)} 2>&1 "
-                   f"| tee -a {shlex.quote(str(jd / 'run.log'))}; herdr tab close {{TAB}}")
-            if herdr_tab_run(f"review: {spec['repo'].split('/')[-1]}#{spec['number']} ({spec['kind']})", cmd):
+            cmd = (f"PRW_TAB={{TAB}} {shlex.quote(sys.executable)} {shlex.quote(str(SELF))} --run-job {shlex.quote(job_id)} 2>&1 "
+                   f"| tee -a {shlex.quote(str(jd / 'run.log'))}")   # タブは閉じず、終わったら run_job が「✓ / ✗」の印を付ける
+            if herdr_tab_run(tab_label(spec), cmd):
                 return
         except Exception as e:   # herdr が使えないときは、従来どおり裏で直接走らせる
             with open(jd / "run.log", "ab") as f:
@@ -445,20 +497,40 @@ def run_job(job_id):
     st.update(pid=os.getpid(), state="running")
     wjson(jd / "status.json", st)
     try:
+        say(f"レビュー開始: {spec['repo']}#{spec['number']}（{spec['kind']}）{spec.get('title', '')}")
         token = gh_token()
+        say("リポジトリを準備")
         repo = ensure_repo(cfg, spec, token)
+        say("コードを取得（worktree）")
         wt, head, mb = prepare_worktree(repo, spec, token)
+        say(f"レビュー用の資料を作成（コミット {head[:7]}）")
         build_context(cfg, jd, spec, token, wt, head, mb)
-        codex_state = run_codex(cfg, jd, wt, spec) if spec["kind"] == "req" and cfg.get("use_codex") else "skipped"
-        out, meta = run_claude(cfg, jd, wt, spec, head, mb)
+        if spec["kind"] == "req" and cfg.get("use_codex"):
+            with Ticker("Codex がレビュー中"):
+                codex_state = run_codex(cfg, jd, wt, spec)
+            say(f"Codex のレビュー: {codex_state}")
+        else:
+            codex_state = "skipped"
+        with Ticker(f"Claude がレビュー中（{cfg['model']}）"):
+            out, meta = run_claude(cfg, jd, wt, spec, head, mb)
+        n = len(out.get("findings") or []) if isinstance(out, dict) else 0
+        say(f"Claude のレビュー完了（{meta.get('duration_sec')} 秒、指摘 {n} 件、費用 ${meta.get('cost_usd')}）")
         result = {"kind": spec["kind"], "repo": spec["repo"], "number": spec["number"], "sha": head, "key": spec.get("key"),
                   "job_id": job_id, "finished_at": now_iso(), "codex": codex_state, "meta": meta, "output": out}
         sub = "test" if spec.get("test") else spec["kind"]
         wjson(BASE / "results" / sub / f'{spec["kind"]}__{spec["rkey"]}.json' if spec.get("test") else BASE / "results" / sub / f'{spec["rkey"]}.json', result)
         st.update(state="done", finished_at=now_iso(), error="")
+        say("結果を保存しました。" + ("" if spec.get("test") else "AI review の投稿は、次の確認（最大 15 分後）で行います。"))
     except Exception as e:
         st.update(state="failed", finished_at=now_iso(), error=str(e)[-800:])
+        say(f"失敗: {str(e)[-300:]}")
     wjson(jd / "status.json", st)
+    tab = os.environ.get("PRW_TAB")
+    if tab:   # タブの名前に、結果の印を付けて残す（古いものは次のレビュー開始時に整理される）
+        try:
+            _herdr("tab", "rename", tab, ("✓ " if st.get("state") == "done" else "✗ ") + tab_label(spec))
+        except Exception:
+            pass
 
 # ---------- AI レビューの投稿 ----------
 SEV_LABEL = {"must": "Must", "should": "Should", "question": "質問", "nit": "Nit"}
@@ -623,6 +695,11 @@ def cmd_watch(args):
         print(json.dumps({"error": "別の pr-review-watch が実行中です"}, ensure_ascii=False))
         return
     errors = []
+    if cfg.get("run_in_herdr", False) and not args.no_kick:
+        try:
+            ensure_watch_tab()
+        except Exception as e:   # herdr が使えなくても、検知とレビューは続ける
+            errors.append(f"見張りタブを用意できません: {cut(str(e), 120)}")
     token = gh_token()
     login, req, mine, rev = scan(token)
     orgs = {o.lower() for o in cfg["review_orgs"]}
